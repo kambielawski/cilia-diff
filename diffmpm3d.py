@@ -7,6 +7,9 @@ import random
 import matplotlib.pyplot as plt
 import time
 
+from bot import Bot
+TEST_BOT_PKL_FILE_PATH = './pickle/circular/Run4group3subject2/Run4group3subject2_res38.p'
+
 real = ti.f32
 ti.init(default_fp=real, arch=ti.gpu, flatten_if=True, device_memory_GB=3.5)
 
@@ -247,8 +250,7 @@ def compute_actuation(t: ti.i32):
     for i in range(n_actuators):
         act = 0.0
         for j in ti.static(range(n_sin_waves)):
-            act += weights[i, j] * ti.sin(actuation_omega * t * dt +
-                                          2 * math.pi / n_sin_waves * j)
+            act += weights[i, j] * ti.sin(actuation_omega * t * dt + 2 * math.pi / n_sin_waves * j)
         act += bias[i]
         actuation[t, i] = ti.tanh(act)
 
@@ -300,6 +302,9 @@ def backward():
         compute_actuation.grad(s)
 
 
+#####################################################
+# The definition of the environment 
+#####################################################
 class Scene:
     def __init__(self):
         self.n_particles = 0
@@ -318,7 +323,12 @@ class Scene:
         n_actuators = self.num_actuators
         return self.num_actuators - 1
 
+    #####################################################
+    # Add a single rectangle made up of particles
+    # x,y,z,w,h,d are all integers
+    #####################################################
     def add_rect(self, x, y, z, w, h, d, actuation, ptype=1):
+        print(x,y,z,w,h,d)
         if ptype == 0:
             assert actuation == -1
         global n_particles
@@ -330,6 +340,9 @@ class Scene:
         real_dy = h / h_count
         real_dz = d / d_count
 
+        print(real_dx, real_dy, real_dz)
+
+        
         if ptype == 1:
             for i in range(w_count):
                 for j in range(h_count):
@@ -343,6 +356,8 @@ class Scene:
                         self.particle_type.append(ptype)
                         self.n_particles += 1
                         self.n_solid_particles += int(ptype == 1)
+        # fluid particles
+        '''
         else:
             for i in range(w_count):
                 for j in range(h_count):
@@ -356,6 +371,49 @@ class Scene:
                         self.particle_type.append(ptype)
                         self.n_particles += 1
                         self.n_solid_particles += int(ptype == 1)
+        '''
+
+    #####################################################
+    # Take the anthrobot body and convert to particles
+    #####################################################
+    def add_body(self, body):
+        # body is n*n*n array
+        # 0 is nothing
+        # 1 is body particle
+        # 2 is actuator particle
+
+        w,h,d = body.shape
+        assert w == h == d
+
+        global n_particles
+        density = 3
+
+        sim_w = 0.3
+        sim_h = 0.3
+        sim_d = 0.3
+
+        sim_dx = sim_w / w
+        sim_dy = sim_h / h
+        sim_dz = sim_d / d
+
+        ptype = 1 # all particles are solid
+
+        for x in range(w):
+            for y in range(h):
+                for z in range(d):
+                    if body[x,y,z] > 0:
+                        self.x.append([
+                            self.offset_x + (x + 0.5) * sim_dx,
+                            self.offset_y + (y + 0.5) * sim_dy,
+                            self.offset_z + (z + 0.5) * sim_dz
+                        ])
+                        self.particle_type.append(ptype)
+                        self.n_particles += 1
+                        self.n_solid_particles += int(ptype == 1)
+                        if body[x,y,z] == 1:   # body particle
+                            self.actuator_id.append(-1)
+                        elif body[x,y,z] == 2: # ciliated/actuator particle
+                            self.actuator_id.append(self.new_actuator())
 
     def set_offset(self, x, y, z):
         self.offset_x = x
@@ -398,11 +456,14 @@ def copy_back_and_clear(img: ti.types.ndarray()):
 # the Bot() object into the simulator
 ##############################################################
 def robot(scene):
+    # block_size is how big a single voxel is
+
     block_size = 0.1  # change the block_size to 0.05 if run out of GPU memory
     # scene.set_offset(0.1, 0.10, 0.3)
     scene.set_offset(0.1, 0.05, 0.3)
 
     def add_leg(x, y, z):
+        print(f'adding leg at {x},{y},{z}')
         for i in range(4):
             scene.add_rect(x + block_size / 2 * (i // 2),
                            y + 0.7 * block_size / 2 * (i % 2), z,
@@ -411,10 +472,16 @@ def robot(scene):
 
     for i in range(4):
         add_leg(i // 2 * block_size * 2, 0.0, i % 2 * block_size * 2)
-    for i in range(3):
+    for i in range(3): # body (not actuated)
         scene.add_rect(block_size * i, 0, block_size, block_size,
                        block_size * 0.7, block_size, -1, 1)
 
+##############################################################
+# Anthrobot creation from Bot() class
+##############################################################
+def anthrobot(scene):
+    anthrobot = Bot(TEST_BOT_PKL_FILE_PATH)
+    scene.add_body(anthrobot.body)
 
 @ti.kernel
 def learn(learning_rate: ti.template()):
@@ -445,7 +512,8 @@ def main():
     # initialization
     scene = Scene()
     # fish(scene)
-    robot(scene)
+    # robot(scene)
+    anthrobot(scene)
     # scene.add_rect(0.4, 0.4, 0.2, 0.1, 0.3, 0.1, -1, 1)
     scene.finalize()
     allocate_fields()
