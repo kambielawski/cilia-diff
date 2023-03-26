@@ -5,7 +5,7 @@ class for an anthrobot
 import numpy as np
 import pickle 
 from scipy.ndimage.measurements import center_of_mass
-from misc import up,down,front,back,left,right, plot_cilia_force_vectors
+from misc import up,down,front,back,left,right, plot_cilia_force_vectors, voxcraft_to_taichi_coordinates
 
 class Bot():
 
@@ -14,8 +14,9 @@ class Bot():
         self.ID = ID
         
         with open(filename, 'rb') as f:
-            # self.body = self.remove_padding(pickle.load(f)[0])
-            self.body = pickle.load(f)[0]
+            # Rotate the body to match TaiChi coordinate system
+            self.body = voxcraft_to_taichi_coordinates(pickle.load(f)[0])
+            # self.body = pickle.load(f)[0]
             self.true_morph = self.body # save copy
 
         # Make self.body into a sphere

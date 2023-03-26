@@ -28,6 +28,9 @@ def up(x,y,z,d=1):
 def down(x,y,z,d=1):
     return x,y,z-d
 
+def voxcraft_to_taichi_coordinates(arr):
+    return np.rot90(arr, k=1, axes=(1,2))
+
 def get_n_neighbors(self, a, n=1):
     b = np.pad(a, pad_width=n, mode='constant', constant_values=0)
     neigh = np.concatenate((
