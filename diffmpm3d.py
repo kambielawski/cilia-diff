@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import time
 
 from bot import Bot
+from viz import visualize
 TEST_BOT_PKL_FILE_PATH = './pickle/circular/Run4group3subject2/Run4group3subject2_res38.p'
 
 real = ti.f32
@@ -535,10 +536,18 @@ def main():
         learning_rate = 30
         learn(learning_rate)
 
+        # visualize
+        np_x = x.to_numpy()
+        visualize(np_x) 
+
         if iter % 20 == 19:
             print('Writing particle data to disk...')
             print('(Please be patient)...')
+
             # visualize
+            np_x = x.to_numpy()
+            visualize(np_x) 
+
             forward()
             x_ = x.to_numpy()
             v_ = v.to_numpy()
