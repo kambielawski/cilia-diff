@@ -30,7 +30,8 @@ mu = E
 la = E
 max_steps = 512
 steps = 512
-gravity = 10
+# gravity = 10
+gravity = 5
 target = [0.8, 0.2, 0.2]
 use_apic = False
 
@@ -56,7 +57,7 @@ x_avg = vec()
 
 actuation = scalar()
 actuation_omega = 40
-act_strength = 5
+act_strength = 10
 
 visualize_resolution = 256
 
@@ -387,17 +388,12 @@ class Scene:
         self.body = body
 
         w,h,d = body.shape
-        assert w == h == d
+        max_dim = max([w,h,d])
 
         global n_particles
 
-        sim_w = 0.3
-        sim_h = 0.3
-        sim_d = 0.3
-
-        sim_dx = sim_w / w
-        sim_dy = sim_h / h
-        sim_dz = sim_d / d
+        sim_body_size = 0.3
+        sim_particle_size = sim_body_size / max_dim
 
         ptype = 1 # all particles are solid
 
@@ -406,9 +402,9 @@ class Scene:
                 for z in range(d):
                     if body[x,y,z] > 0:
                         self.x.append([
-                            self.offset_x + (x + 0.5) * sim_dx,
-                            self.offset_y + (y + 0.5) * sim_dy,
-                            self.offset_z + (z + 0.5) * sim_dz
+                            self.offset_x + (x + 0.5) * sim_particle_size,
+                            self.offset_y + (y + 0.5) * sim_particle_size,
+                            self.offset_z + (z + 0.5) * sim_particle_size
                         ])
                         self.particle_type.append(ptype)
                         self.n_particles += 1
@@ -485,6 +481,7 @@ def robot(scene):
 ##############################################################
 def anthrobot(scene):
     anthrobot = Bot(TEST_BOT_PKL_FILE_PATH)
+    anthrobot.body = anthrobot.remove_padding(anthrobot.body)
     scene.add_body(anthrobot.body)
 
 @ti.kernel
@@ -540,16 +537,16 @@ def main():
         learn(learning_rate)
 
         # visualize
-        np_x = x.to_numpy()
-        visualize(scene, np_x) 
+        # np_x = x.to_numpy()
+        # visualize(scene, np_x) 
 
-        if iter % 20 == 19:
+        if iter % 200 == 199:
             print('Writing particle data to disk...')
             print('(Please be patient)...')
 
             # visualize
             np_x = x.to_numpy()
-            visualize(np_x) 
+            visualize(scene, np_x) 
 
             forward()
             x_ = x.to_numpy()

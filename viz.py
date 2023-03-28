@@ -34,6 +34,7 @@ def visualize(scene, time_series):
 
     # scene.body is n * n * n matrix of 0,1,2 (1 body, 2 ciliated)
 
+    # Separate ciliated from non-ciliated particles
     actuator_time_series = np.zeros((timesteps, scene.num_actuators, dim))
     body_time_series = np.zeros((timesteps, n_particles - scene.num_actuators, dim))
     for t, timestep in enumerate(time_series):  # iterate over timesteps 
