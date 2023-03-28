@@ -308,6 +308,7 @@ def backward():
 #####################################################
 class Scene:
     def __init__(self):
+        self.body = None
         self.n_particles = 0
         self.n_solid_particles = 0
         self.x = []
@@ -383,11 +384,12 @@ class Scene:
         # 1 is body particle
         # 2 is actuator particle
 
+        self.body = body
+
         w,h,d = body.shape
         assert w == h == d
 
         global n_particles
-        density = 3
 
         sim_w = 0.3
         sim_h = 0.3
@@ -422,11 +424,12 @@ class Scene:
         self.offset_z = z
 
     def finalize(self):
-        global n_particles, n_solid_particles
+        global n_particles, n_solid_particles, n_actuators
         n_particles = self.n_particles
         n_solid_particles = max(self.n_solid_particles, 1)
         print('n_particles', n_particles)
         print('n_solid', n_solid_particles)
+        print('n_actuators', n_actuators)
 
     def set_n_actuators(self, n_act):
         global n_actuators
@@ -538,7 +541,7 @@ def main():
 
         # visualize
         np_x = x.to_numpy()
-        visualize(np_x) 
+        visualize(scene, np_x) 
 
         if iter % 20 == 19:
             print('Writing particle data to disk...')

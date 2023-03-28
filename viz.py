@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
 
+from misc import taichi_to_voxcraft_coordinates
+
 
 '''
 data = np.array([[[1,2,3],[1,3,3],[1,4,3]],
@@ -12,7 +14,8 @@ data = np.array([[[1,2,3],[1,3,3],[1,4,3]],
 '''
 
 
-def visualize(time_series):
+def visualize(scene, time_series):
+
     timesteps, n_particles, dim = time_series.shape 
 
     # Create a 3D scatter plot
@@ -29,7 +32,21 @@ def visualize(time_series):
     ax.set_ylim(np.min(time_series), np.max(time_series))
     ax.set_zlim(np.min(time_series), np.max(time_series))
 
-    def update_scatter(num):
+    # scene.body is n * n * n matrix of 0,1,2 (1 body, 2 ciliated)
+
+    actuator_time_series = np.zeros((timesteps, scene.num_actuators, dim))
+    body_time_series = np.zeros((timesteps, n_particles - scene.num_actuators, dim))
+    for t, timestep in enumerate(time_series):  # iterate over timesteps 
+        p = 0
+        for i, particle in enumerate(timestep): # iterate over particles
+            if scene.actuator_id[i] != -1:
+                actuator_time_series[t, scene.actuator_id[i]] = particle
+            else:
+                body_time_series[t, p] = particle
+                p += 1
+
+
+    def update_scatter(timestep):
         ax.clear()
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
@@ -37,9 +54,11 @@ def visualize(time_series):
         ax.set_xlim(np.min(time_series), np.max(time_series))
         ax.set_ylim(np.min(time_series), np.max(time_series))
         ax.set_zlim(np.min(time_series), np.max(time_series))
-        ax.scatter(time_series[num, :, 0], time_series[num, :, 1], time_series[num, :, 2])
 
-        timestep_label = f'Timestep: {num}'
+        ax.scatter(body_time_series[timestep, :, 0], body_time_series[timestep, :, 2], body_time_series[timestep, :, 1])
+        ax.scatter(actuator_time_series[timestep, :, 0], actuator_time_series[timestep, :, 2], actuator_time_series[timestep, :, 1])
+
+        timestep_label = f'Timestep: {timestep}'
         legend = ax.legend([timestep_label], handlelength=0, handletextpad=0)
         for item in legend.legendHandles:
             item.set_visible(False)
