@@ -9,7 +9,8 @@ import time
 
 from bot import Bot
 from viz import visualize
-TEST_BOT_PKL_FILE_PATH = './pickle/circular/Run4group3subject2/Run4group3subject2_res38.p'
+# TEST_BOT_PKL_FILE_PATH = './pickle/circular/Run4group3subject2/Run4group3subject2_res38.p'
+TEST_BOT_PKL_FILE_PATH = './pickle/circular/Run6group5subject1/Run6group5subject1_res30.p'
 
 real = ti.f32
 ti.init(default_fp=real, arch=ti.gpu, flatten_if=True, device_memory_GB=3.5)
@@ -24,14 +25,15 @@ dx = 1 / n_grid
 inv_dx = 1 / dx
 dt = 2e-3
 p_vol = 1
+# E = 10
 E = 10
 # TODO: update
 mu = E
 la = E
-max_steps = 512
-steps = 512
+max_steps = 800
+steps = 800
 # gravity = 10
-gravity = 5
+gravity = 4
 target = [0.8, 0.2, 0.2]
 use_apic = False
 
@@ -57,6 +59,7 @@ x_avg = vec()
 
 actuation = scalar()
 actuation_omega = 40
+# act_strength = 10
 act_strength = 10
 
 visualize_resolution = 256
@@ -480,8 +483,13 @@ def robot(scene):
 # Anthrobot creation from Bot() class
 ##############################################################
 def anthrobot(scene):
+    scene.set_offset(0.1, 0.05, 0.3)
     anthrobot = Bot(TEST_BOT_PKL_FILE_PATH)
+    # anthrobot.body = anthrobot.downsample_half(anthrobot.body, conv=2)
     anthrobot.body = anthrobot.remove_padding(anthrobot.body)
+    print(anthrobot.body.shape)
+    # exit(1)
+    # anthrobot.body =
     scene.add_body(anthrobot.body)
 
 @ti.kernel
@@ -507,7 +515,7 @@ def init(x_: ti.types.ndarray(element_dim=1), actuator_id_arr: ti.types.ndarray(
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--iters', type=int, default=100)
+    parser.add_argument('--iters', type=int, default=5000)
     options = parser.parse_args()
 
     # initialization
@@ -540,7 +548,7 @@ def main():
         # np_x = x.to_numpy()
         # visualize(scene, np_x) 
 
-        if iter % 200 == 199:
+        if iter % 150 == 0:
             print('Writing particle data to disk...')
             print('(Please be patient)...')
 

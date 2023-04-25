@@ -15,7 +15,7 @@ data = np.array([[[1,2,3],[1,3,3],[1,4,3]],
 
 
 def visualize(scene, time_series):
-
+    time_series = time_series[::5]
     timesteps, n_particles, dim = time_series.shape 
 
     # Create a 3D scatter plot
@@ -65,7 +65,7 @@ def visualize(scene, time_series):
             item.set_visible(False)
 
     # Create the animation
-    ani = animation.FuncAnimation(fig, update_scatter, frames=len(time_series), interval=100, repeat=True)
+    ani = animation.FuncAnimation(fig, update_scatter, frames=len(time_series), interval=100, repeat=False)
     # ani.legend()
 
     # Display the animation

@@ -5,6 +5,7 @@ class for an anthrobot
 import numpy as np
 import pickle 
 from scipy.ndimage.measurements import center_of_mass
+from scipy import ndimage
 from misc import up,down,front,back,left,right, plot_cilia_force_vectors, voxcraft_to_taichi_coordinates
 
 class Bot():
@@ -502,6 +503,25 @@ class Bot():
                                 self.cilia[r,c,z,:] = cilia_force_vec
 
         # return cilia
+    def downsample_half(self, arr, conv=2):
+        assert len(arr.shape) == 3
+        assert all([i % conv == 0 for i in arr.shape])
+
+        new_shape = tuple([int(i / conv) for i in arr.shape])
+        print(new_shape)
+        new_arr = np.zeros(new_shape)
+
+        for i in range(new_shape[0]):
+            for j in range(new_shape[1]):
+                for k in range(new_shape[2]):
+                    if np.any(arr[i*conv:(i*conv + conv), j*conv:(j*conv + conv), k*conv:(k*conv + conv)] == 2):
+                        new_arr[i,j,k] = 2
+                    elif np.any(arr[i*conv:(i*conv + conv), j*conv:(j*conv + conv), k*conv:(k*conv + conv)] == 1):
+                        new_arr[i,j,k] = 1
+                    else:
+                        new_arr[i,j,k] = 0
+
+        return new_arr        
 
     def remove_padding(self,arr):
         pad_value = 0
