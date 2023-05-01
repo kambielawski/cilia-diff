@@ -30,10 +30,10 @@ E = 10
 # TODO: update
 mu = E
 la = E
-max_steps = 800
-steps = 800
+max_steps = 1200 
+steps = 1200
 # gravity = 10
-gravity = 4
+gravity = 1
 target = [0.8, 0.2, 0.2]
 use_apic = False
 
@@ -60,7 +60,7 @@ x_avg = vec()
 actuation = scalar()
 actuation_omega = 40
 # act_strength = 10
-act_strength = 10
+act_strength = 5
 
 visualize_resolution = 256
 
@@ -149,9 +149,12 @@ def p2g(f: ti.i32):
         mass = 0.0
         ident = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
         if particle_type[p] == 0:
+            # mass = 4
+            # mass = 1 
             mass = 4
-            cauchy = ti.Matrix(ident) * (J - 1) * E
+            cauchy = ti.Matrix(ident) * (J - 1) * E 
         else:
+            # mass = 1
             mass = 1
             cauchy = mu * (new_F @ new_F.transpose()) + ti.Matrix(ident) * (
                 la * ti.log(J) - mu)
@@ -393,7 +396,7 @@ class Scene:
         w,h,d = body.shape
         max_dim = max([w,h,d])
 
-        global n_particles
+        global n_particles 
 
         sim_body_size = 0.3
         sim_particle_size = sim_body_size / max_dim
@@ -429,6 +432,7 @@ class Scene:
         print('n_particles', n_particles)
         print('n_solid', n_solid_particles)
         print('n_actuators', n_actuators)
+        print('actuator proportion: ', n_actuators / n_particles)
 
     def set_n_actuators(self, n_act):
         global n_actuators
@@ -462,8 +466,8 @@ def robot(scene):
     # block_size is how big a single voxel is
 
     block_size = 0.1  # change the block_size to 0.05 if run out of GPU memory
-    # scene.set_offset(0.1, 0.10, 0.3)
-    scene.set_offset(0.1, 0.05, 0.3)
+    scene.set_offset(0.1, 0.10, 0.3)
+    # scene.set_offset(0, 0, 0)
 
     def add_leg(x, y, z):
         print(f'adding leg at {x},{y},{z}')
@@ -483,7 +487,7 @@ def robot(scene):
 # Anthrobot creation from Bot() class
 ##############################################################
 def anthrobot(scene):
-    scene.set_offset(0.1, 0.05, 0.3)
+    scene.set_offset(0.1, 0.05, 0)
     anthrobot = Bot(TEST_BOT_PKL_FILE_PATH)
     # anthrobot.body = anthrobot.downsample_half(anthrobot.body, conv=2)
     anthrobot.body = anthrobot.remove_padding(anthrobot.body)
@@ -554,7 +558,7 @@ def main():
 
             # visualize
             np_x = x.to_numpy()
-            visualize(scene, np_x) 
+            visualize(scene, np_x, t) 
 
             forward()
             x_ = x.to_numpy()

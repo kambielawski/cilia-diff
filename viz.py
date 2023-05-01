@@ -14,8 +14,8 @@ data = np.array([[[1,2,3],[1,3,3],[1,4,3]],
 '''
 
 
-def visualize(scene, time_series):
-    time_series = time_series[::5]
+def visualize(scene, time_series, t):
+    time_series = time_series[::10]
     timesteps, n_particles, dim = time_series.shape 
 
     # Create a 3D scatter plot
@@ -59,6 +59,11 @@ def visualize(scene, time_series):
         ax.scatter(body_time_series[timestep, :, 0], body_time_series[timestep, :, 2], body_time_series[timestep, :, 1])
         ax.scatter(actuator_time_series[timestep, :, 0], actuator_time_series[timestep, :, 2], actuator_time_series[timestep, :, 1])
 
+        # Set camera position 
+        azimuth_angle = 270 / 360
+        elevation_angle = 5 
+        ax.view_init(elev=elevation_angle, azim=azimuth_angle)
+
         timestep_label = f'Timestep: {timestep}'
         legend = ax.legend([timestep_label], handlelength=0, handletextpad=0)
         for item in legend.legendHandles:
@@ -66,6 +71,7 @@ def visualize(scene, time_series):
 
     # Create the animation
     ani = animation.FuncAnimation(fig, update_scatter, frames=len(time_series), interval=100, repeat=False)
+    ani.save(f'animation_{t}.gif', writer='ffmpeg', fps=30, dpi=100)
     # ani.legend()
 
     # Display the animation
