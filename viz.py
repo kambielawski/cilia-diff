@@ -114,17 +114,14 @@ def visualize(scene, time_series, t):
         ax.scatter(body_time_series[timestep, :, 0], body_time_series[timestep, :, 2], body_time_series[timestep, :, 1])
         ax.scatter(actuator_time_series[timestep, :, 0], actuator_time_series[timestep, :, 2], actuator_time_series[timestep, :, 1])
 
-<<<<<<< HEAD
         # Set camera position 
         azimuth_angle = 270 / 360
         elevation_angle = 5 
         ax.view_init(elev=elevation_angle, azim=azimuth_angle)
 
-        timestep_label = f'Timestep: {timestep}'
-=======
         t = timestep * 5
         timestep_label = f'Timestep: {t}'
->>>>>>> 94cdece (viz flat)
+
         legend = ax.legend([timestep_label], handlelength=0, handletextpad=0)
         for item in legend.legendHandles:
             item.set_visible(False)
