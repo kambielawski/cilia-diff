@@ -12,6 +12,27 @@ data = np.array([[[1,2,3],[1,3,3],[1,4,3]],
                  [[1,2,3],[1,3,3],[1,4,3]]])
 '''
 
+def cross_section_visualize(body):
+    w,l,h = body.shape
+    for x in range(w):
+        yz_points_body = []
+        yz_points_act = []
+        for y in range(l):
+            for z in range(h):
+                if body_arr[x][y][z] == 1: 
+                    yz_points_body.append((y, z))  
+                if body_arr[x][y][z] == 2: 
+                    yz_points_act.append((y, z))
+                    # yz_points.append((y,z))
+        if len(yz_points_body):
+            plt.scatter(*zip(*yz_points_body), label="body")
+        if len(yz_points_act):
+            plt.scatter(*zip(*yz_points_act), label="act")
+        # plt.scatter(*zip(*yz_points))
+        plt.legend()
+        plt.show()
+
+
 def visualize_actuator_flat(scene, time_series):
     time_series = time_series[::5]
     timesteps, n_particles, dim = time_series.shape 
