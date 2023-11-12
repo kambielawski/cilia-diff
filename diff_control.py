@@ -7,7 +7,7 @@ from scipy.io import savemat
 
 from viz import visualize
 
-arch = ti.gpu # Use ti.metal if you are on Apple M1, ti.gpu if using CUDA
+arch = ti.metal # Use ti.metal if you are on Apple M1, ti.gpu if using CUDA
 real = ti.f32
 dim = 3
 scalar = lambda: ti.field(dtype=real)
