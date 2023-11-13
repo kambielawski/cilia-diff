@@ -14,7 +14,7 @@ data = np.array([[[1,2,3],[1,3,3],[1,4,3]],
 '''
 
 
-def visualize(scene, time_series, t):
+def visualize(scene, time_series, t, display=False):
     time_series = time_series[::10]
     timesteps, n_particles, dim = time_series.shape 
 
@@ -71,9 +71,11 @@ def visualize(scene, time_series, t):
 
     # Create the animation
     ani = animation.FuncAnimation(fig, update_scatter, frames=len(time_series), interval=100, repeat=False)
-    ani.save(f'animation_{t}.gif', writer='ffmpeg', fps=30, dpi=100)
+    ani.save(f'./animations/animation_{t}.gif', writer='ffmpeg', fps=30, dpi=100)
+    print(f'Saved to animation_{t}.gif')
     # ani.legend()
 
     # Display the animation
-    plt.show()
+    if display:
+        plt.show()
 
