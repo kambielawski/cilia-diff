@@ -42,7 +42,7 @@ class DiffControl:
     n_grid = 96
     dx = 1 / 128
     inv_dx = 1 / dx
-    dt = 1e-3
+    # dt = 1e-3
     p_vol = 1
     E = 50
     nu = 0.1
@@ -60,11 +60,13 @@ class DiffControl:
     n_actuators = 0
     is_initialized = False
 
-    def __init__(self, savedata_folder=None):
+    def __init__(self, savedata_folder=None, experiment_parameters=None):
         ti.init(default_fp=real, arch=arch, device_memory_GB=4.5, flatten_if=True)  # , debug=True, gdb_trigger=True)
         self.folder = savedata_folder
         if savedata_folder is not None:
             os.makedirs(savedata_folder, exist_ok=True)
+
+        self.dt = experiment_parameters['dt']
 
         self.actuator_id = ti.field(ti.i32)
         self.particle_type = ti.field(ti.i32)
