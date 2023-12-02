@@ -42,7 +42,6 @@ class DiffControl:
     n_grid = 96
     dx = 1 / 128
     inv_dx = 1 / dx
-    # dt = 1e-3
     p_vol = 1
     E = 50
     nu = 0.1
@@ -51,23 +50,35 @@ class DiffControl:
     max_steps = 2048
     visu_steps = 2048
     steps = 2048
-    gravity = 5
     coeff = 0.5
     bound = 3
-    # this will be overwritten
+    # These will be overwritten by the Robot object
     n_particles = 0
     n_solid_particles = 0
     n_actuators = 0
     is_initialized = False
 
     def __init__(self, savedata_folder=None, experiment_parameters=None):
-        ti.init(default_fp=real, arch=arch, device_memory_GB=4.5, flatten_if=True)  # , debug=True, gdb_trigger=True)
+        # Initialize TaiChi 
+        ti.init(
+            default_fp=real, 
+            arch=arch, 
+            device_memory_GB=4.5, 
+            flatten_if=True
+        ) 
+        
+        # Initialize save folder
         self.folder = savedata_folder
         if savedata_folder is not None:
             os.makedirs(savedata_folder, exist_ok=True)
 
+        # Extract experiment-specific parameters
         self.dt = experiment_parameters['dt']
+        self.gravity = experiment_parameters['gravity']
+        self.actuation_omega = experiment_parameters['actuation_omega']
+        self.act_strength = experiment_parameters['actuation_strength']
 
+        # Initialize memory for TaiChi simulation
         self.actuator_id = ti.field(ti.i32)
         self.particle_type = ti.field(ti.i32)
         self.x, self.v = vec(), vec()
@@ -85,10 +96,11 @@ class DiffControl:
         self.x_avg = vec()
 
         self.actuation = scalar()
-        self.actuation_omega = 40
-        self.act_strength = 5
 
     def allocate_fields(self):
+        """
+        Allocates fields for TaiChi simulation
+        """
         # ti.root.dense(ti.ij, (self.n_actuators, self.n_sin_waves)).place(self.weights)
         ti.root.dense(ti.i, self.n_actuators).place(self.bias)
         ti.root.dense(ti.i, self.n_actuators).place(self.weights)
