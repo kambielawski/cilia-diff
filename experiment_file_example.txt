@@ -1,0 +1,10 @@
+{
+    'exp1_parameters': 
+        {
+            'iters': 5000,
+            'dt': 1e-3,
+            'gravity': 5,
+            'actuation_omega': 40, 
+            'actuation_strength': 5,
+        }
+}
