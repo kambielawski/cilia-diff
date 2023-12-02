@@ -280,17 +280,16 @@ class DiffControl:
 
     def forward(self, total_steps=steps):
         # simulation
-        for s in range(total_steps - 1):
+        for t in range(total_steps - 1):
             self.clear_grid()
-            self.compute_actuation(s)
-            self.p2g(s)
+            self.compute_actuation(t)
+            self.p2g(t)
             self.grid_op()
-            self.g2p(s)
+            self.g2p(t)
 
         self.x_avg[None] = [0, 0, 0]
         self.compute_x_avg(self.steps)
         self.compute_loss()
-        print(self.x_avg[None])
         return self.loss[None]
 
     def backward(self):
