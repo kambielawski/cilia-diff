@@ -27,8 +27,8 @@ def main():
                 os.system(f'mkdir ./experiments/{args.exp_name}/{arm}')
             
             experiment_parameters = exp_arms[arm]
-            rbt = Robot(robot_type=RobotType.ANTH)
-            dc = DiffControl(save_folder=f'./experiments/{args.exp_name}/{arm}', experiment_parameters=experiment_parameters)
+            rbt = Robot(robot_type=RobotType.ANTH, experiment_parameters=experiment_parameters)
+            dc = DiffControl(savedata_folder=f'./experiments/{args.exp_name}/{arm}', experiment_parameters=experiment_parameters)
             dc.init(rbt)
             dc.run(experiment_parameters['iters'])
             dc.visualize_actuation()
