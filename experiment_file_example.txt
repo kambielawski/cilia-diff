@@ -6,6 +6,7 @@
             'gravity': 5,
             'actuation_omega': 1200, 
             'actuation_strength': 5,
-            'sim_body_size': 0.1
+            'sim_body_size': 0.1,
+            'learning_rate': 30
         }
 }

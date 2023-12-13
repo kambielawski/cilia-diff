@@ -58,6 +58,9 @@ class DiffControl:
     n_actuators = 0
     is_initialized = False
 
+    # Track losses for all iterations 
+    losses = []
+
     def __init__(self, savedata_folder=None, experiment_parameters=None):
         # Initialize TaiChi 
         ti.init(
@@ -77,6 +80,7 @@ class DiffControl:
         self.gravity = experiment_parameters['gravity']
         self.actuation_omega = experiment_parameters['actuation_omega']
         self.act_strength = experiment_parameters['actuation_strength']
+        self.learning_rate = experiment_parameters['learning_rate']
 
         # Initialize memory for TaiChi simulation
         self.actuator_id = ti.field(ti.i32)
@@ -371,19 +375,18 @@ class DiffControl:
             np.save(f, self.bias.to_numpy())
 
     def run(self, iters, visualize=False):
-        losses = []
         for it in range(iters):
             t = time.time()
             ti.ad.clear_all_gradients()
             loss = self.forward(self.steps)
-            losses.append(loss)
+            self.losses.append(loss)
             self.loss.grad[None] = 1
             self.backward()
             per_iter_time = time.time() - t
+            
             print('i=', it, 'loss=', loss, F' per iter {per_iter_time:.2f}s')
 
-            learning_rate = 30
-            self.learn(learning_rate)
+            self.learn(self.learning_rate)
 
             if visualize and it % 50 == 0:
                 print('Writing particle data to disk...')
@@ -395,7 +398,7 @@ class DiffControl:
         plt.title("Optimization of Initial Velocity")
         plt.ylabel("Loss")
         plt.xlabel("Gradient Descent Iterations")
-        plt.plot(losses)
+        plt.plot(self.losses)
         plt.show()
 
     def run_once(self):
