@@ -96,6 +96,7 @@ class DiffControl:
         self.x_avg = vec()
 
         self.actuation = scalar()
+        self.actuation_value = scalar()
 
     def allocate_fields(self):
         """
@@ -108,6 +109,7 @@ class DiffControl:
         ti.root.dense(ti.i, self.n_actuators).place(self.omegas)
 
         ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation)
+        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation_value)
         ti.root.dense(ti.i, self.n_particles).place(self.actuator_id, self.particle_type)
         ti.root.dense(ti.k, self.max_steps).dense(ti.l, self.n_particles).place(self.x, self.v, self.C, self.F)
         ti.root.dense(ti.ijk, (self.n_grid, 32, self.n_grid)).place(self.grid_v_in, self.grid_m_in, self.grid_v_out)
@@ -263,6 +265,11 @@ class DiffControl:
             # for j in ti.static(range(self.n_sin_waves)):
             #     act += self.weights[i, j] * ti.sin(self.actuation_omega * t * self.dt + 2 * math.pi / self.n_sin_waves * j)
             act += self.bias[i]
+
+            # Track the actuation of a single particle
+            self.actuation_value[t, i] = act
+
+            # Activated actuation
             self.actuation[t, i] = ti.tanh(act)
 
     @ti.kernel
@@ -363,7 +370,7 @@ class DiffControl:
             np.save(f, self.weights.to_numpy())
             np.save(f, self.bias.to_numpy())
 
-    def run(self, iters):
+    def run(self, iters, visualize=False):
         losses = []
         for it in range(iters):
             t = time.time()
@@ -374,10 +381,11 @@ class DiffControl:
             self.backward()
             per_iter_time = time.time() - t
             print('i=', it, 'loss=', loss, F' per iter {per_iter_time:.2f}s')
+
             learning_rate = 30
             self.learn(learning_rate)
 
-            if it % 50 == 0:
+            if visualize and it % 50 == 0:
                 print('Writing particle data to disk...')
                 print('(Please be patient)...')
                 x_numpy = self.x.to_numpy()
@@ -399,3 +407,12 @@ class DiffControl:
             savemat(f'{self.folder}.mat', {'x': np.squeeze(np.mean(self.x.to_numpy()[:self.visu_steps, :, :], axis=1))})
         print("loss=", loss_val)
         return loss_val
+
+    def visualize_actuation(self, n_actuators=3):
+
+        for i in range(n_actuators):
+            act_values = self.actuation_value.to_numpy()[:, i]
+            t = range(len(act_values))
+            plt.plot(t, act_values)
+
+        plt.show()

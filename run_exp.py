@@ -11,6 +11,7 @@ if not os.path.exists('./experiments'):
 # Parse command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('exp_file', type=str)
+parser.add_argument('exp_name', type=str)
 args = parser.parse_args()
 
 # Read the experiment file into exp_arms variable
@@ -30,6 +31,7 @@ def main():
             dc = DiffControl(save_folder=f'./experiments/{args.exp_name}/{arm}', experiment_parameters=experiment_parameters)
             dc.init(rbt)
             dc.run(experiment_parameters['iters'])
+            dc.visualize_actuation()
 
 if __name__ == '__main__':
     main()
