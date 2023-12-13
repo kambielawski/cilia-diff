@@ -10,7 +10,7 @@ experiment_parameters = {
         }
 
 def main():
-    rbt = Robot(robot_type=RobotType.ANTH)
+    rbt = Robot(robot_type=RobotType.ANTH, experiment_parameters=experiment_parameters)
     dc = DiffControl(experiment_parameters=experiment_parameters)
     dc.init(rbt)
     dc.run(experiment_parameters['iters'])

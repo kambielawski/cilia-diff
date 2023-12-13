@@ -15,7 +15,7 @@ class RobotType(Enum):
 
 class Robot:
     # The definition of the environment
-    def __init__(self, robot_type: RobotType):
+    def __init__(self, robot_type: RobotType, experiment_parameters):
         # self.body = None
         self.n_particles = 0        # Total number of particles
         self.n_solid_particles = 0  # Number of solid (non-actuated) particles
@@ -26,6 +26,8 @@ class Robot:
         self.offset_x = 0
         self.offset_y = 0
         self.offset_z = 0
+
+        self.sim_body_size = experiment_parameters['sim_body_size']
 
         if robot_type == RobotType.ANTH or robot_type == RobotType.ANTH_SPHERE:
             self.set_offset(0.05, 0.02, 0)
@@ -49,8 +51,7 @@ class Robot:
         max_dim = max([w, h, d])
         print(w, h, d)
 
-        sim_body_size = 0.05
-        sim_particle_size = sim_body_size / max_dim
+        sim_particle_size = self.sim_body_size / max_dim
         print(sim_particle_size)
         ptype = 1  # all particles are solid
 
@@ -76,8 +77,7 @@ class Robot:
         max_dim = max([w, h, d])
         print(w, h, d)
 
-        sim_body_size = 0.05
-        sim_particle_size = sim_body_size / max_dim
+        sim_particle_size = self.sim_body_size / max_dim
         print(sim_particle_size)
         ptype = 1  # all particles are solid
 
@@ -108,8 +108,7 @@ class Robot:
         max_dim = max([w, h, d])
         print(w, h, d)
 
-        sim_body_size = 0.1
-        sim_particle_size = sim_body_size / max_dim
+        sim_particle_size = self.sim_body_size / max_dim
 
         ptype = 1  # all particles are solid
 
@@ -136,8 +135,7 @@ class Robot:
         max_dim = max([w, h, d])
         print(w, h, d)
 
-        sim_body_size = 0.1
-        sim_particle_size = sim_body_size / max_dim
+        sim_particle_size = self.sim_body_size / max_dim
         print(sim_particle_size)
 
         for x in range(w):
