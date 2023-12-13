@@ -17,9 +17,9 @@ class Robot:
     # The definition of the environment
     def __init__(self, robot_type: RobotType):
         # self.body = None
-        self.n_particles = 0
-        self.n_solid_particles = 0
-        self.n_actuators = 0
+        self.n_particles = 0        # Total number of particles
+        self.n_solid_particles = 0  # Number of solid (non-actuated) particles
+        self.n_actuators = 0        # Number of actuated particles
         self.x = []
         self.actuator_id = []
         self.particle_type = []
