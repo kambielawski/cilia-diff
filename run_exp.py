@@ -21,6 +21,8 @@ exp_arms = eval(exp_string)
 exp_file.close()
 
 def main():
+    os.system(f'mv {args.exp_file} ./experiments/{args.exp_name}')
+    
     for arm in exp_arms:
             # Create experiments directory if it doesn't already exist
             if not os.path.exists(f'./experiments/{args.exp_name}/{arm}'):
@@ -31,7 +33,7 @@ def main():
             dc = DiffControl(savedata_folder=f'./experiments/{args.exp_name}/{arm}', experiment_parameters=experiment_parameters)
             dc.init(rbt)
             dc.run(experiment_parameters['iters'])
-            dc.visualize_actuation()
+            dc.pickle_positions(f'{arm}_positions.pkl')
 
 if __name__ == '__main__':
     main()

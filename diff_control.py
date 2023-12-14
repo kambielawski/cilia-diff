@@ -1,4 +1,5 @@
 import taichi as ti
+import pickle
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -419,3 +420,10 @@ class DiffControl:
             plt.plot(t, act_values)
 
         plt.show()
+
+    def pickle_positions(self, file_name):
+        position_data = self.x.to_numpy()
+        actuator_ids = self.actuator_id.to_numpy()
+        data_obj = (position_data, actuator_ids)
+        with open(f'{self.folder}/{file_name}', 'wb') as pf:
+            pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
