@@ -19,9 +19,9 @@ def cross_section_visualize(body):
         yz_points_act = []
         for y in range(l):
             for z in range(h):
-                if body_arr[x][y][z] == 1: 
+                if body[x][y][z] == 1: 
                     yz_points_body.append((y, z))  
-                if body_arr[x][y][z] == 2: 
+                if body[x][y][z] == 2: 
                     yz_points_act.append((y, z))
                     # yz_points.append((y,z))
         if len(yz_points_body):
@@ -33,13 +33,15 @@ def cross_section_visualize(body):
         plt.show()
 
 
-def visualize_actuator_flat(scene, time_series):
-    time_series = time_series[::5]
-    timesteps, n_particles, dim = time_series.shape 
+def visualize_actuator_flat(time_series, actuator_ids):
+    # time_series = time_series[::5]
+    timesteps, n_particles, dim = time_series.shape
+
+    n_actuators = np.sum(actuator_ids != -1)
 
     # Create a 3D scatter plot
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='2d')
+    ax = fig.add_subplot(111) #, projection='2d')
 
     # Set axis labels
     ax.set_xlabel('X')
@@ -52,13 +54,13 @@ def visualize_actuator_flat(scene, time_series):
     # scene.body is n * n * n matrix of 0,1,2 (1 body, 2 ciliated)
 
     # Separate ciliated from non-ciliated particles
-    actuator_time_series = np.zeros((timesteps, scene.num_actuators, dim))
+    actuator_time_series = np.zeros((timesteps, n_actuators, dim))
     # body_time_series = np.zeros((timesteps, n_particles - scene.num_actuators, dim))
-    for t, timestep in enumerate(time_series):  # iterate over timesteps 
+    for t, pos_data in enumerate(time_series):  # iterate over timesteps 
         p = 0
-        for i, particle in enumerate(timestep): # iterate over particles
-            if scene.actuator_id[i] != -1:
-                actuator_time_series[t, scene.actuator_id[i]] = particle
+        for i, particle in enumerate(pos_data): # iterate over particles
+            if actuator_ids[i] != -1:
+                actuator_time_series[t, actuator_ids[i]] = particle
             # else:
                 # body_time_series[t, p] = particle
                 # p += 1
@@ -90,8 +92,7 @@ def visualize_actuator_flat(scene, time_series):
     plt.show()
 
 
-def visualize(actuator_id, time_series, iteration):
-    ratio = 20
+def visualize(actuator_id, time_series, iteration, ratio=20):
     time_series = time_series[::ratio]
     timesteps, n_particles, dim = time_series.shape
     # Create a 3D scatter plot
@@ -103,12 +104,13 @@ def visualize(actuator_id, time_series, iteration):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
+    min_position, max_position = np.min(time_series), np.max(time_series)
+
     # Set plot limits (optional)
-    print(timesteps)
-    print(np.sum(np.isnan(time_series[:, 0, 0])))  # , np.max(time_series))
-    ax.set_xlim(np.min(time_series), np.max(time_series))
-    ax.set_ylim(np.min(time_series), np.max(time_series))
-    ax.set_zlim(np.min(time_series), np.max(time_series))
+    print(f'Animation: {timesteps} timesteps')
+    ax.set_xlim(min_position, max_position)
+    ax.set_ylim(min_position, max_position)
+    ax.set_zlim(min_position, max_position)
     colors = ['#1f77b4' if actuator_id[i] < 0 else '#ff7f0e' for i in range(n_particles)]
 
     def update_scatter(timestep):
@@ -116,14 +118,14 @@ def visualize(actuator_id, time_series, iteration):
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
-        ax.set_xlim(np.min(time_series), np.max(time_series))
-        ax.set_ylim(np.min(time_series), np.max(time_series))
-        ax.set_zlim(np.min(time_series), np.max(time_series))
+        ax.set_xlim(min_position, max_position)
+        ax.set_ylim(min_position, max_position)
+        ax.set_zlim(min_position, max_position)
 
         ax.scatter(time_series[timestep, :, 0], time_series[timestep, :, 2], time_series[timestep, :, 1], c=colors)
 
         # Set camera position 
-        azimuth_angle = 270  # / 360
+        azimuth_angle = 270 
         elevation_angle = 5
         ax.view_init(elev=elevation_angle, azim=azimuth_angle)
 
@@ -137,10 +139,38 @@ def visualize(actuator_id, time_series, iteration):
     # Create the animation
     ani = animation.FuncAnimation(fig, update_scatter, frames=len(time_series), interval=100, repeat=False)
     ani.save(f'animation_{iteration}.gif', writer='ffmpeg', fps=30, dpi=100)
-    plt.close(fig)
-    # ani.legend()
-
-    # ani.save('animation.gif', writer='ffmpeg', fps=30, dpi=100)
-
+    # plt.close(fig)
     # Display the animation
-    # plt.show()
+    plt.show()
+
+def plot_single_particle(particle_timeseries):
+    time = range(len(particle_timeseries))
+    x_data = particle_timeseries[:, 0]
+    y_data = particle_timeseries[:, 1]
+    z_data = particle_timeseries[:, 2]
+
+    plt.figure(figsize=(12, 8))
+
+    # Plot x vs time
+    plt.subplot(3, 1, 1)
+    plt.plot(time, x_data, label='X Position', color='red')
+    plt.title('X Position vs Time')
+    plt.xlabel('Time')
+    plt.ylabel('X Position')
+
+    # Plot y vs time
+    plt.subplot(3, 1, 2)
+    plt.plot(time, y_data, label='Y Position', color='green')
+    plt.title('Y Position vs Time')
+    plt.xlabel('Time')
+    plt.ylabel('Y Position')
+
+    # Plot z vs time
+    plt.subplot(3, 1, 3)
+    plt.plot(time, z_data, label='Z Position', color='blue')
+    plt.title('Z Position vs Time')
+    plt.xlabel('Time')
+    plt.ylabel('Z Position')
+
+    plt.tight_layout()
+    plt.show()
