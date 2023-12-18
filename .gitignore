@@ -5,3 +5,7 @@ mpm3d
 pickle
 animations
 *.swo
+*.gif
+experiments
+*.ipynb
+notebooks
