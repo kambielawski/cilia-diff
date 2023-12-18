@@ -23,7 +23,7 @@ The above file specifies an experiment with one experiment arm: "exp1".
 To run the experiment locally, 
 
 ```
-python3 run_exp.py <experiment_file>
+python3 run_exp.py <experiment_file> <experiment_name>
 ```
 
 This will create an `experiments` directory, a subdirectory for the experiment, and a subsubdirectory for each of the experiment arms. This is where the experiment results will be placed. 
