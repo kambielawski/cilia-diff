@@ -400,7 +400,7 @@ class DiffControl:
         plt.ylabel("Loss")
         plt.xlabel("Gradient Descent Iterations")
         plt.plot(self.losses)
-        plt.show()
+        plt.savefig(f'{self.folder}/loss_fig.png')
 
     def run_once(self):
         assert self.is_initialized

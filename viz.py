@@ -174,3 +174,45 @@ def plot_single_particle(particle_timeseries):
 
     plt.tight_layout()
     plt.show()
+
+def plot_fft_timeseries(particle_timeseries, direction='x'):
+    direction2idx = { 'x': 0, 'y': 1, 'z': 2 } 
+    direction_idx = direction2idx[direction]
+
+    values = particle_timeseries[:, direction_idx]
+    values = values - np.mean(values)
+    time = np.arange(len(values)) * 0.001
+
+    # Calculate FFT
+    fft_values = np.fft.fft(values)
+    fft_freq = np.fft.fftfreq(len(time), (time[1] - time[0]))
+
+    # Consider only the positive frequencies
+    n = len(fft_freq) // 2
+    positive_freqs = fft_freq[:n]
+    positive_fft = np.abs(fft_values)[:n]
+
+    # Find the indices of the three most prominent frequencies (excluding zero frequency)
+    indices = np.argsort(positive_fft[1:])[-3:] + 1  # +1 to exclude zero frequency
+
+    # Create subplots
+    fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+
+    # Plot time series
+    axs[0].plot(time, values, label='Original Time Series')
+    axs[0].set_title('Time Series')
+    axs[0].set_xlabel('Time')
+    axs[0].set_ylabel('Value')
+
+    # Plot FFT
+    axs[1].plot(positive_freqs, positive_fft, label='FFT of Time Series')
+    for idx in indices:
+        axs[1].axvline(x=positive_freqs[idx], color='r', linestyle='--')
+        axs[1].text(positive_freqs[idx], positive_fft[idx], f' {positive_freqs[idx]:.2f} Hz', verticalalignment='bottom')
+    axs[1].set_title('FFT of Time Series')
+    axs[1].set_xlabel('Frequency')
+    axs[1].set_ylabel('Magnitude')
+
+    # Adjust layout and show plot
+    plt.tight_layout()
+    plt.show()
