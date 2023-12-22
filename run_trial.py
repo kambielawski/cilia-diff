@@ -1,17 +1,20 @@
 from robot import Robot, RobotType
-from diff_control import DiffControl
+from diff_control import DiffControl, TrajFollow
 
 experiment_parameters = {
-            'iters': 5,
-            'dt': 1e-3,
-            'gravity': 5,
-            'actuation_omega': 40, 
-            'actuation_strength': 5,
+    'iters': 5000,
+    'dt': 1e-3,
+    'gravity': 5,
+    'actuation_omega': 40,
+    'actuation_strength': 20,
+    'sim_body_size': 0.1,
+    'learning_rate': 30,
+    'body_type': 'ANTHROBOT'
         }
 
 def main():
     rbt = Robot(robot_type=RobotType.ANTH, experiment_parameters=experiment_parameters)
-    dc = DiffControl(experiment_parameters=experiment_parameters)
+    dc = TrajFollow("in_vitro_data/cleaned_data/Run8bot4.csv", experiment_parameters=experiment_parameters)
     dc.init(rbt)
     dc.run(experiment_parameters['iters'])
     dc.visualize_actuation()

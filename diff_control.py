@@ -68,7 +68,8 @@ class DiffControl:
             default_fp=real, 
             arch=arch, 
             device_memory_GB=4.5, 
-            flatten_if=True
+            flatten_if=True,
+            # debug=True
         ) 
         
         # Initialize save folder
@@ -427,3 +428,73 @@ class DiffControl:
         data_obj = (position_data, actuator_ids)
         with open(f'{self.folder}/{file_name}', 'wb') as pf:
             pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+class TrajFollow(DiffControl):
+    def __init__(self, trajectory_file, savedata_folder=None, experiment_parameters=None):
+        super(TrajFollow, self).__init__(savedata_folder=savedata_folder, experiment_parameters=experiment_parameters)
+        self.x_avg_steps = vec()
+        self.traj = vec()
+        trajectory = np.loadtxt(trajectory_file, delimiter=',', dtype=np.float32, skiprows=1, usecols=(2, 3))
+        assert trajectory is not None and trajectory.shape[1] >= 1
+        self.trajectory = np.insert(trajectory, 1, 0, axis=1) / 1000
+        self.rep = int((self.steps-1)//self.trajectory.shape[0])+1
+        self.trajectory = np.repeat(self.trajectory, self.rep, axis=0)
+
+    def allocate_fields(self):
+        ti.root.dense(ti.k, self.max_steps).place(self.x_avg_steps)
+        ti.root.dense(ti.k, self.trajectory.shape[0]).place(self.traj)
+        super().allocate_fields()
+        self.traj.from_numpy(self.trajectory)
+
+    @ti.kernel
+    def compute_loss(self):
+        for idx in range(self.steps):
+            weight = 0
+            if idx % self.rep == 0:
+                weight = 1
+            dist = (self.x_avg_steps[idx][0] - self.traj[idx][0]) ** 2 + (self.x_avg_steps[idx][2] - self.traj[idx][2]) ** 2
+            ti.atomic_add(self.loss[None], weight * dist)
+
+    @ti.kernel
+    def compute_x_avg_steps(self):
+        for s in range(self.steps):
+            for i in range(self.n_particles):
+                contrib = 0.0
+                if self.particle_type[i] == 1:
+                    contrib = 1.0 / self.n_solid_particles
+                ti.atomic_add(self.x_avg_steps[s], contrib * self.x[s, i])
+
+    def forward(self, total_steps=-1):
+        if total_steps == -1:
+            total_steps = self.steps
+
+        # simulation
+        for t in range(total_steps - 1):
+            self.clear_grid()
+            self.compute_actuation(t)
+            self.p2g(t)
+            self.grid_op()
+            self.g2p(t)
+            self.x_avg_steps[t] = [0, 0, 0]
+
+        self.loss[None] = 0
+        self.compute_x_avg_steps()
+        self.compute_loss()
+        return self.loss[None]
+
+    def backward(self):
+        self.clear_particle_grad()
+
+        self.compute_loss.grad()
+        self.compute_x_avg_steps.grad()
+        for s in reversed(range(self.steps - 1)):
+            # Since we do not store the grid history (to save space), we redo p2g and grid op
+            self.clear_grid()
+            self.p2g(s)
+            self.grid_op()
+
+            self.g2p.grad(s)
+            self.grid_op.grad()
+            self.p2g.grad(s)
+            self.compute_actuation.grad(s)
