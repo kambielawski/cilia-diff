@@ -4,11 +4,12 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from enum import Enum
 from scipy.io import savemat
 
 from viz import visualize
 
-arch = ti.gpu # Use ti.metal if you are on Apple M1, ti.gpu if using CUDA
+arch = ti.gpu  # Use ti.metal if you are on Apple M1, ti.gpu if using CUDA
 real = ti.f32
 dim = 3
 scalar = lambda: ti.field(dtype=real)
@@ -18,6 +19,18 @@ mat = lambda: ti.Matrix.field(dim, dim, dtype=real)
 # TODO: generalize this 
 TEST_BOT_PKL_FILE_PATH = './pickle/circular/Run6group5subject1/Run6group5subject1_res30.p'
 
+
+class OptProblem(Enum):
+    DESIGN = 0
+    CONTROL = 1
+    BOTH = 2
+
+
+opt_problem_map = {
+    'DESIGN': OptProblem.DESIGN,
+    'CONTROL': OptProblem.CONTROL,
+    'BOTH': OptProblem.BOTH,
+}
 
 @ti.func
 def isnan(x):
@@ -44,10 +57,6 @@ class DiffControl:
     dx = 1 / 128
     inv_dx = 1 / dx
     p_vol = 1
-    E = 50
-    nu = 0.1
-    mu = E / (2 * (1 + nu))
-    la = E * nu / ((1 + nu) * (1 - 2 * nu))
     max_steps = 2048
     visu_steps = 2048
     steps = 2048
@@ -67,9 +76,9 @@ class DiffControl:
         ti.init(
             default_fp=real, 
             arch=arch, 
-            device_memory_GB=4.5, 
+            device_memory_GB=4.5,
             flatten_if=True,
-            # debug=True
+            debug=True
         ) 
         
         # Initialize save folder
@@ -83,7 +92,11 @@ class DiffControl:
         self.actuation_omega = experiment_parameters['actuation_omega']
         self.act_strength = experiment_parameters['actuation_strength']
         self.learning_rate = experiment_parameters['learning_rate']
-
+        self.opt_problem = opt_problem_map[experiment_parameters['opt_problem']]
+        self.E_default = experiment_parameters['E_default']
+        self.nu_default = experiment_parameters['nu_default']
+        self.mass_fluid_default = experiment_parameters['mass_fluid_default']
+        self.mass_solid_default = experiment_parameters['mass_solid_default']
         # Initialize memory for TaiChi simulation
         self.actuator_id = ti.field(ti.i32)
         self.particle_type = ti.field(ti.i32)
@@ -94,13 +107,17 @@ class DiffControl:
 
         self.loss = scalar()
 
-        # self.n_sin_waves = 4
         self.weights = scalar()
         self.bias = scalar()
         self.offsets = scalar()
         self.omegas = scalar()
-        self.x_avg = vec()
+        self.E_solid = scalar()
+        self.nu_solid = scalar()
+        self.mass_solid = scalar()
+        self.E_fluid = scalar()
+        self.mass_fluid = scalar()
 
+        self.x_avg = vec()
         self.actuation = scalar()
         self.actuation_value = scalar()
 
@@ -108,11 +125,12 @@ class DiffControl:
         """
         Allocates fields for TaiChi simulation
         """
-        # ti.root.dense(ti.ij, (self.n_actuators, self.n_sin_waves)).place(self.weights)
         ti.root.dense(ti.i, self.n_actuators).place(self.bias)
         ti.root.dense(ti.i, self.n_actuators).place(self.weights)
         ti.root.dense(ti.i, self.n_actuators).place(self.offsets)
         ti.root.dense(ti.i, self.n_actuators).place(self.omegas)
+
+        ti.root.place(self.E_solid, self.E_fluid, self.nu_solid, self.mass_solid, self.mass_fluid)
 
         ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation)
         ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation_value)
@@ -169,14 +187,16 @@ class DiffControl:
                 A[dim - 1, dim - 1] = act
 
             cauchy = new_F @ A @ new_F.transpose()
-            mass = 1
+            mass = self.mass_fluid[None]
+
             if self.particle_type[p] == 0:
-                # mass = 4
-                # mass = 1
-                mass = 4
-                cauchy += ti.Matrix.identity(real, dim) * (J - 1) * self.E
+                cauchy += ti.Matrix.identity(real, dim) * (J - 1) * self.E_fluid[None]
             else:
-                cauchy += self.mu * (new_F @ new_F.transpose()) + ti.Matrix.identity(real, dim) * (self.la * ti.log(J) - self.mu)
+                mu = self.E_solid[None] / (2 * (1 + self.nu_solid[None]))
+                la = self.E_solid[None] * self.nu_solid[None] / ((1 + self.nu_solid[None]) * (1 - 2 * self.nu_solid[None]))
+                mass = self.mass_solid[None]
+                cauchy += mu * (new_F @ new_F.transpose()) + ti.Matrix.identity(real, dim) * (la * ti.log(J) - mu)
+
             stress = -(self.dt * self.p_vol * 4 * self.inv_dx * self.inv_dx) * cauchy
             affine = stress + mass * self.C[f, p]
             for i in ti.static(range(3)):
@@ -196,49 +216,31 @@ class DiffControl:
             v_out[1] -= self.dt * self.gravity
 
             if i < self.bound and v_out[0] < 0:
-                v_out[0] = 0
-                v_out[1] = 0
-                v_out[2] = 0
+                v_out = zero_vec()
             if i > self.n_grid - self.bound and v_out[0] > 0:
-                v_out[0] = 0
-                v_out[1] = 0
-                v_out[2] = 0
-
+                v_out = zero_vec()
             if k < self.bound and v_out[2] < 0:
-                v_out[0] = 0
-                v_out[1] = 0
-                v_out[2] = 0
+                v_out = zero_vec()
             if k > self.n_grid - self.bound and v_out[2] > 0:
-                v_out[0] = 0
-                v_out[1] = 0
-                v_out[2] = 0
-
+                v_out = zero_vec()
             if j < self.bound and v_out[1] < 0:
-                v_out[0] = 0
-                v_out[1] = 0
-                v_out[2] = 0
+                v_out = zero_vec()
                 normal = ti.Vector([0.0, 1.0, 0.0])
                 lsq = (normal ** 2).sum()
                 if lsq > 0.5:
                     if ti.static(self.coeff < 0):
-                        v_out[0] = 0
-                        v_out[1] = 0
-                        v_out[2] = 0
+                        v_out = zero_vec()
                     else:
                         lin = v_out.dot(normal)
                         if lin < 0:
                             vit = v_out - lin * normal
                             lit = vit.norm() + 1e-10
                             if lit + self.coeff * lin <= 0:
-                                v_out[0] = 0
-                                v_out[1] = 0
-                                v_out[2] = 0
+                                v_out = zero_vec()
                             else:
                                 v_out = (1 + self.coeff * lin / lit) * vit
             if j > self.n_grid - self.bound and v_out[1] > 0:
-                v_out[0] = 0
-                v_out[1] = 0
-                v_out[2] = 0
+                v_out = zero_vec()
 
             self.grid_v_out[i, j, k] = v_out
 
@@ -265,16 +267,12 @@ class DiffControl:
             self.C[f + 1, p] = new_C
 
     @ti.kernel
-    def compute_actuation(self, t: ti.i32):
+    def compute_actuation(self, t: ti.i32):  # TODO: prepare for OptProblem.DESIGN
         for i in range(self.n_actuators):
             act = self.weights[i] * ti.sin(self.actuation_omega * t * self.dt + self.offsets[i])
-            # for j in ti.static(range(self.n_sin_waves)):
-            #     act += self.weights[i, j] * ti.sin(self.actuation_omega * t * self.dt + 2 * math.pi / self.n_sin_waves * j)
             act += self.bias[i]
-
             # Track the actuation of a single particle
             self.actuation_value[t, i] = act
-
             # Activated actuation
             self.actuation[t, i] = ti.tanh(act)
 
@@ -323,16 +321,45 @@ class DiffControl:
 
     @ti.kernel
     def learn(self, learning_rate: ti.template()):
-        # for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
-        #     self.weights[i, j] -= learning_rate * self.weights.grad[i, j]
-        #
-        # for i in range(self.n_actuators):
-        #     self.bias[i] -= learning_rate * self.bias.grad[i]
-        for i in range(self.n_actuators):
-            self.bias[i] -= learning_rate * self.bias.grad[i]
-            self.weights[i] -= learning_rate * self.weights.grad[i]
-            self.offsets[i] -= learning_rate * self.offsets.grad[i]
-            self.omegas[i] -= learning_rate * self.omegas.grad[i]
+        if self.opt_problem == OptProblem.BOTH or self.opt_problem == OptProblem.CONTROL:
+            for i in range(self.n_actuators):
+                self.bias[i] -= learning_rate * self.bias.grad[i]
+                self.weights[i] -= learning_rate * self.weights.grad[i]
+                self.offsets[i] -= learning_rate * self.offsets.grad[i]
+                self.omegas[i] -= learning_rate * self.omegas.grad[i]
+        if self.opt_problem == OptProblem.BOTH or self.opt_problem == OptProblem.DESIGN:
+            self.E_solid[None] -= learning_rate * self.E_solid.grad[None]
+            self.E_fluid[None] -= learning_rate * self.E_fluid.grad[None]
+            self.mass_solid[None] -= learning_rate * self.mass_solid.grad[None]
+            self.mass_fluid[None] -= learning_rate * self.mass_fluid.grad[None]
+            self.nu_solid[None] -= learning_rate * self.nu_solid.grad[None]
+            self.nu_solid[None] = ti.min(ti.max(ti.abs(self.nu_solid[None]), 0.01), 0.45)
+            self.E_solid[None] = ti.min(ti.max(ti.abs(self.E_solid[None]), 1), 100000)
+            self.E_solid[None] = ti.min(ti.max(ti.abs(self.E_solid[None]), 1), 100000)
+
+    def optvar_init(self):
+        if self.opt_problem == OptProblem.BOTH or self.opt_problem == OptProblem.CONTROL:
+            for i in range(self.n_actuators):
+                self.weights[i] = np.random.randn() * 0.1
+                self.offsets[i] = np.random.randn()
+                self.omegas[i] = np.random.randn() * 100
+        if self.opt_problem == OptProblem.BOTH or self.opt_problem == OptProblem.DESIGN:
+            self.E_solid[None] = np.random.randint(10, 100)
+            self.E_fluid[None] = np.random.randint(10, 100)
+            self.mass_solid[None] = np.abs(np.random.randn())
+            self.mass_fluid[None] = np.abs(np.random.randn())
+            self.nu_solid[None] = np.clip(np.abs(np.random.rand()) / 2, 0.1, 0.45)
+            print("E solid = ", self.E_solid[None])
+            print("E fluid = ", self.E_fluid[None])
+            print("mass solid = ", self.mass_solid[None])
+            print("mass fluid = ", self.mass_fluid[None])
+            print("nu solid = ", self.nu_solid[None])
+        else:
+            self.E_solid[None] = self.E_default
+            self.E_fluid[None] = self.E_default
+            self.mass_fluid[None] = self.mass_fluid_default
+            self.mass_solid[None] = self.mass_solid_default
+            self.nu_solid[None] = self.nu_default
 
     def init(self, robot, load_weights_filename=None, savedata_folder=None):
         self.n_particles = robot.n_particles
@@ -344,13 +371,7 @@ class DiffControl:
         print('actuator proportion: ', self.n_actuators / self.n_particles)
         self.allocate_fields()
 
-        # for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
-        #     self.weights[i, j] = np.random.randn() * 0.01
-        for i in range(self.n_actuators):
-            self.weights[i] = np.random.randn() * 0.1
-            self.offsets[i] = np.random.randn()
-            self.omegas[i] = np.random.randn() * 100
-            # print(self.weights[i], self.offsets[i], self.omegas[i])
+        self.optvar_init()
 
         for i in range(self.n_particles):
             self.x[0, i] = robot.x[i]

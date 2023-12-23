@@ -9,7 +9,12 @@ experiment_parameters = {
     'actuation_strength': 20,
     'sim_body_size': 0.1,
     'learning_rate': 30,
-    'body_type': 'ANTHROBOT'
+    'body_type': 'ANTHROBOT',
+    'opt_problem': 'BOTH',
+    'mass_fluid_default': 4,
+    'mass_solid_default': 1,
+    'E_default': 50,
+    'nu_default': 0.1,
         }
 
 def main():
