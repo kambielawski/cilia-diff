@@ -100,6 +100,8 @@ class DiffControl:
         self.omegas = scalar()
         self.x_avg = vec()
 
+        self.cauchy_act = mat() # tracking cauchy stress matrix over time
+
         self.actuation = scalar()
         self.actuation_value = scalar()
 
@@ -119,6 +121,7 @@ class DiffControl:
         ti.root.dense(ti.k, self.max_steps).dense(ti.l, self.n_particles).place(self.x, self.v, self.C, self.F)
         ti.root.dense(ti.ijk, (self.n_grid, 32, self.n_grid)).place(self.grid_v_in, self.grid_m_in, self.grid_v_out)
         ti.root.place(self.loss, self.x_avg)
+        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.cauchy_act)
         ti.root.lazy_grad()
 
     @ti.kernel
@@ -165,9 +168,13 @@ class DiffControl:
 
             if act_id > 0:
                 act = self.actuation[f, ti.max(0, act_id)] * self.act_strength
-                A[dim - 1, dim - 1] = act
+                # A[dim - 2, dim - 2] = act
+                A[0,0] = act
 
             cauchy = new_F @ A @ new_F.transpose()
+            if self.particle_type != 0:
+                self.cauchy_act[f, self.actuator_id[p]] = cauchy
+
             mass = 1
             if self.particle_type[p] == 0:
                 # mass = 4
@@ -427,3 +434,11 @@ class DiffControl:
         data_obj = (position_data, actuator_ids)
         with open(f'{self.folder}/{file_name}', 'wb') as pf:
             pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def pickle_act(self, file_name):
+        act_data = self.cauchy_act.to_numpy()
+        actuator_ids = self.actuator_id.to_numpy()
+        data_obj = (act_data, actuator_ids)
+        with open(f'{self.folder}/{file_name}', 'wb') as pf:
+            pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
+        
