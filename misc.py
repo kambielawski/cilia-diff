@@ -122,3 +122,43 @@ def plot_cilia_force_vectors(body, cilia, scale=5, save_dir=None, l=None, plot_m
         else:
             plt.show()
 
+def compute_eigens(cauchy_timeseries, particle=10):
+    """
+    Computes the eigenvalues and eigenvectors for a series of 3x3 Cauchy stress tensors.
+
+    Parameters:
+    stress_tensors (numpy.ndarray): A T x 3 x 3 array where T is the number of timesteps, and each 3x3 matrix is a Cauchy stress tensor.
+
+    Returns:
+    eig_values (numpy.ndarray): A T x 3 array of eigenvalues for each timestep.
+    eig_vectors (numpy.ndarray): A T x 3 x 3 array of eigenvectors for each timestep.
+    """
+
+    stress_tensors = cauchy_timeseries[:, particle]
+
+    T = stress_tensors.shape[0]
+    eig_values = np.zeros((T, 3))
+    eig_vectors = np.zeros((T, 3, 3))
+
+    for t in range(T):
+        vals, vecs = np.linalg.eig(stress_tensors[t])
+        eig_values[t] = vals
+        eig_vectors[t] = vecs
+
+    return eig_values, eig_vectors
+
+def norm_vector(v):
+    v_norm = np.linalg.norm(v)
+    if v_norm == 0:
+        return v
+    return v / v_norm
+
+def surface_normal(all_positions, particle_id, t):
+    pos_t = all_positions[t, particle_id]
+    centroid = np.mean(all_positions[t, :, :], axis=0)
+    
+    norm_vec = pos_t - centroid
+    normalized_norm_vec = norm_vec / np.linalg.norm(norm_vec)
+
+    return normalized_norm_vec
+
