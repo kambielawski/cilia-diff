@@ -82,6 +82,8 @@ class DiffControl:
         self.actuation_omega = experiment_parameters['actuation_omega']
         self.act_strength = experiment_parameters['actuation_strength']
         self.learning_rate = experiment_parameters['learning_rate']
+        self.actuation_axes = experiment_parameters['actuation_axes']
+        self.n_actuation_axes = len(self.actuation_axes)
 
         # Initialize memory for TaiChi simulation
         self.actuator_id = ti.field(ti.i32)
@@ -110,13 +112,13 @@ class DiffControl:
         Allocates fields for TaiChi simulation
         """
         # ti.root.dense(ti.ij, (self.n_actuators, self.n_sin_waves)).place(self.weights)
-        ti.root.dense(ti.i, self.n_actuators).place(self.bias)
-        ti.root.dense(ti.i, self.n_actuators).place(self.weights)
-        ti.root.dense(ti.i, self.n_actuators).place(self.offsets)
-        ti.root.dense(ti.i, self.n_actuators).place(self.omegas)
+        ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.bias)
+        ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.weights)
+        ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.offsets)
+        ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.omegas)
 
-        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation)
-        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation_value)
+        ti.root.dense(ti.ijk, (self.n_actuation_axes, self.max_steps, self.n_actuators)).place(self.actuation)
+        ti.root.dense(ti.ijk, (self.n_actuation_axes, self.max_steps, self.n_actuators)).place(self.actuation_value)
         ti.root.dense(ti.i, self.n_particles).place(self.actuator_id, self.particle_type)
         ti.root.dense(ti.k, self.max_steps).dense(ti.l, self.n_particles).place(self.x, self.v, self.C, self.F)
         ti.root.dense(ti.ijk, (self.n_grid, 32, self.n_grid)).place(self.grid_v_in, self.grid_m_in, self.grid_v_out)
@@ -144,8 +146,8 @@ class DiffControl:
 
     @ti.kernel
     def clear_actuation_grad(self):
-        for t, i in self.actuation:
-            self.actuation[t, i] = 0.0
+        for a, t, i in self.actuation:
+            self.actuation[a, t, i] = 0.0
 
     @ti.kernel
     def p2g(self, f: ti.i32):
@@ -167,9 +169,10 @@ class DiffControl:
             A = ti.Matrix.zero(real, 3, 3)
 
             if act_id > 0:
-                act = self.actuation[f, ti.max(0, act_id)] * self.act_strength
-                # A[dim - 2, dim - 2] = act
-                A[0,0] = act
+                for axis in range(self.n_actuation_axes):
+                    act = self.actuation[axis, f, ti.max(0, act_id)] * self.act_strength
+                    # A[dim - 2, dim - 2] = act
+                    A[axis, axis] = act
 
             cauchy = new_F @ A @ new_F.transpose()
             if self.particle_type != 0:
@@ -272,17 +275,17 @@ class DiffControl:
 
     @ti.kernel
     def compute_actuation(self, t: ti.i32):
-        for i in range(self.n_actuators):
-            act = self.weights[i] * ti.sin(self.actuation_omega * t * self.dt + self.offsets[i])
+        for i, axis in ti.ndrange(self.n_actuators, self.n_actuation_axes):
+            act = self.weights[axis, i] * ti.sin(self.actuation_omega * t * self.dt + self.offsets[axis, i])
             # for j in ti.static(range(self.n_sin_waves)):
             #     act += self.weights[i, j] * ti.sin(self.actuation_omega * t * self.dt + 2 * math.pi / self.n_sin_waves * j)
-            act += self.bias[i]
+            act += self.bias[axis, i]
 
             # Track the actuation of a single particle
-            self.actuation_value[t, i] = act
+            self.actuation_value[axis, t, i] = act
 
             # Activated actuation
-            self.actuation[t, i] = ti.tanh(act)
+            self.actuation[axis, t, i] = ti.tanh(act)
 
     @ti.kernel
     def compute_x_avg(self, steps: ti.i32):
@@ -335,10 +338,11 @@ class DiffControl:
         # for i in range(self.n_actuators):
         #     self.bias[i] -= learning_rate * self.bias.grad[i]
         for i in range(self.n_actuators):
-            self.bias[i] -= learning_rate * self.bias.grad[i]
-            self.weights[i] -= learning_rate * self.weights.grad[i]
-            self.offsets[i] -= learning_rate * self.offsets.grad[i]
-            self.omegas[i] -= learning_rate * self.omegas.grad[i]
+            for axis in range(self.n_actuation_axes):
+                self.bias[axis,i] -= learning_rate * self.bias.grad[axis,i]
+                self.weights[axis,i] -= learning_rate * self.weights.grad[axis,i]
+                self.offsets[axis,i] -= learning_rate * self.offsets.grad[axis,i]
+                self.omegas[axis,i] -= learning_rate * self.omegas.grad[axis,i]
 
     def init(self, robot, load_weights_filename=None, savedata_folder=None):
         self.n_particles = robot.n_particles
@@ -352,10 +356,11 @@ class DiffControl:
 
         # for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
         #     self.weights[i, j] = np.random.randn() * 0.01
-        for i in range(self.n_actuators):
-            self.weights[i] = np.random.randn() * 0.1
-            self.offsets[i] = np.random.randn()
-            self.omegas[i] = np.random.randn() * 100
+        for i, axis in ti.ndrange(self.n_actuators, self.n_actuation_axes):
+            # for axis in range(self.n_actuation_axes):
+            self.weights[axis, i] = np.random.randn() * 0.1
+            self.offsets[axis, i] = np.random.randn()
+            self.omegas[axis, i] = np.random.randn() * 100
             # print(self.weights[i], self.offsets[i], self.omegas[i])
 
         for i in range(self.n_particles):
@@ -422,7 +427,7 @@ class DiffControl:
     def visualize_actuation(self, n_actuators=3):
 
         for i in range(n_actuators):
-            act_values = self.actuation_value.to_numpy()[:, i]
+            act_values = self.actuation_value.to_numpy()[:, :, i]
             t = range(len(act_values))
             plt.plot(t, act_values)
 
