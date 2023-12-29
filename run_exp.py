@@ -34,12 +34,13 @@ def main():
             
             experiment_parameters = exp_arms[arm]
             body_type = robot_type_map[experiment_parameters['body_type']]
-            
+
             rbt = Robot(robot_type=body_type, experiment_parameters=experiment_parameters)
             dc = DiffControl(savedata_folder=f'./experiments/{args.exp_name}/{arm}', experiment_parameters=experiment_parameters)
             dc.init(rbt)
             dc.run(experiment_parameters['iters'])
             dc.pickle_positions(f'{arm}_positions.pkl')
+            dc.pickle_act(f'{arm}_act.pkl')
 
 if __name__ == '__main__':
     main()
