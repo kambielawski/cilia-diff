@@ -1,4 +1,11 @@
 anthro-comp
+*.swp
 __pycache__
+mpm3d
+pickle
+animations
+*.swo
 *.gif
 experiments
+*.ipynb
+notebooks
