@@ -581,3 +581,92 @@ def anthrobot_angle_3dplot(act_timeseries, pos_timeseries, actuator_ids):
     ax.set_zlabel('Z Axis')
 
     plt.show()
+
+def compute_azimuth(v1,v2):
+    """
+    Calculate the azimuthal angle between two 3D vectors.
+
+    Args:
+    v1 (array-like): The first vector.
+    v2 (array-like): The second vector.
+
+    Returns:
+    float: The azimuthal angle in radians.
+    """
+    # Step 1: Normalize v1
+    v1_norm = v1 / np.linalg.norm(v1)
+
+    # Step 2: Project v2 onto the plane perpendicular to v1
+    v2_proj = v2 - np.dot(v2, v1_norm) * v1_norm
+
+    # Step 3: Choose a reference direction in the plane perpendicular to v1
+    # For simplicity, we'll use the projection of the x-axis unit vector onto this plane.
+    # If v1 is parallel or anti-parallel to the x-axis, we use the y-axis instead.
+    x_axis = np.array([1, 0, 0])
+    if np.allclose(v1_norm, x_axis) or np.allclose(v1_norm, -x_axis):
+        ref_direction = np.array([0, 1, 0]) - np.dot(np.array([0, 1, 0]), v1_norm) * v1_norm
+    else:
+        ref_direction = x_axis - np.dot(x_axis, v1_norm) * v1_norm
+
+    # Normalize the reference direction
+    ref_direction_norm = ref_direction / np.linalg.norm(ref_direction)
+
+    # Step 4: Compute the angle between the projection of v2 and the reference direction
+    angle = np.arctan2(np.linalg.norm(np.cross(ref_direction_norm, v2_proj)), 
+                       np.dot(ref_direction_norm, v2_proj))
+
+    return np.degrees(angle)
+
+def anthrobot_azimuth_3dplot(act_timeseries, pos_timeseries, actuator_ids):
+    # particle_timeseries = act_timeseries[:, particle]
+    T = act_timeseries.shape[0]
+    n_actuators = act_timeseries.shape[1]
+
+    # Actuator position timeseries
+    actuator_position_timeseries = np.zeros((n_actuators, 3))
+    for i, particle in enumerate(pos_timeseries[1]): # iterate over particles
+        if actuator_ids[i] != -1:
+            actuator_position_timeseries[actuator_ids[i]] = particle
+
+    angles = np.zeros(T)
+    traction_values = np.zeros((T,3))
+    mean_angles = np.zeros(n_actuators)
+
+    for actuator_id in range(n_actuators):
+        for timestep in range(T):
+            particle_id = np.where(actuator_ids == actuator_id)[0][0]
+            cauchy_matrix = act_timeseries[timestep, actuator_id]
+            normal_vec = surface_normal(pos_timeseries, particle_id, t=timestep)
+
+            traction_vec = np.dot(cauchy_matrix, normal_vec) / np.linalg.norm(np.dot(cauchy_matrix, normal_vec))
+            traction_values[timestep] = traction_vec
+
+            if timestep > 0 and np.dot(traction_values[timestep], traction_values[timestep-1]) < 0:
+                traction_values[timestep] *= -1
+
+            # print(normal_vec, traction_vec)
+            angle_deg = compute_azimuth(normal_vec, traction_values[timestep])
+
+            angles[timestep] = angle_deg
+
+        mean_angles[actuator_id] = np.mean(angles)
+        if actuator_id % 50 == 0:
+            print(f'{actuator_id}/{n_actuators} actuators complete')
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Create a scatter plot
+    scatter = ax.scatter(actuator_position_timeseries[:, 0], actuator_position_timeseries[:, 1], actuator_position_timeseries[:, 2], c=mean_angles, cmap='twilight_shifted')
+
+    # Adding a color bar which maps values to colors
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label('Normal Traction Azimuth Angle')
+
+    ax.set_title('Azimuth Angle')
+    ax.set_xlabel('X Axis')
+    ax.set_ylabel('Y Axis')
+    ax.set_zlabel('Z Axis')
+
+    plt.show()
+
