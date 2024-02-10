@@ -1,28 +1,17 @@
-from robot import Robot, RobotType
-from diff_control import DiffControl
+import argparse
+import pickle
 
-experiment_parameters = {
-            'iters': 5,
-            'dt': 1e-3,
-            'gravity': 5,
-            'actuation_omega': 10, 
-            'actuation_strength': 1,
-            'sim_body_size': 0.1,
-            'learning_rate': 20,
-            'body_type': 'ANTHROBOT',
-            'actuation_axes': [0,1]
-        }
+from Trial import Trial
 
-folder = './experiments/test_2axes'
+############# ARGUMENT PARSING #############
 
-def main():
-    rbt = Robot(robot_type=RobotType.ANTH, experiment_parameters=experiment_parameters)
-    dc = DiffControl(experiment_parameters=experiment_parameters, savedata_folder=folder)
-    dc.init(rbt)
-    dc.run(experiment_parameters['iters'])
-    dc.pickle_act(f'test_2axes_act.pkl')
-    dc.pickle_positions(f'test_2axes_pos.pkl')
-    
+parser = argparse.ArgumentParser()
+parser.add_argument('--file', required=True, default='', help='File path for pickled Trial object')
+args = parser.parse_args()
 
-if __name__ == '__main__':
-    main()
+############# RUN EXPERIMENT(S) #############
+
+with open(args.file, 'rb') as pickle_file:
+    trial : Trial = pickle.load(pickle_file)
+
+trial.Run()

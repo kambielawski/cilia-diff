@@ -99,13 +99,13 @@ class DiffControl:
         self.weights = scalar()
         self.bias = scalar()
         self.offsets = scalar()
-        self.omegas = scalar()
+        # self.omegas = scalar()
         self.x_avg = vec()
 
         self.cauchy_act = mat() # tracking cauchy stress matrix over time
 
-        self.actuation = scalar()
-        self.actuation_value = scalar()
+        self.actuation_x, self.actuation_y, self.actuation_z = scalar(), scalar(), scalar()
+        # self.actuation_value = scalar()
 
     def allocate_fields(self):
         """
@@ -115,10 +115,14 @@ class DiffControl:
         ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.bias)
         ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.weights)
         ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.offsets)
-        ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.omegas)
+        # ti.root.dense(ti.ij, (self.n_actuation_axes, self.n_actuators)).place(self.omegas)
 
-        ti.root.dense(ti.ijk, (self.n_actuation_axes, self.max_steps, self.n_actuators)).place(self.actuation)
-        ti.root.dense(ti.ijk, (self.n_actuation_axes, self.max_steps, self.n_actuators)).place(self.actuation_value)
+        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation_x)
+        # if self.n_actuation_axes > 1:
+        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation_y)
+        # if self.n_actuation_axes > 2:
+        ti.root.dense(ti.ij, (self.max_steps, self.n_actuators)).place(self.actuation_z)
+        # ti.root.dense(ti.ijk, (self.n_actuation_axes, self.max_steps, self.n_actuators)).place(self.actuation_value)
         ti.root.dense(ti.i, self.n_particles).place(self.actuator_id, self.particle_type)
         ti.root.dense(ti.k, self.max_steps).dense(ti.l, self.n_particles).place(self.x, self.v, self.C, self.F)
         ti.root.dense(ti.ijk, (self.n_grid, 32, self.n_grid)).place(self.grid_v_in, self.grid_m_in, self.grid_v_out)
@@ -169,10 +173,21 @@ class DiffControl:
             A = ti.Matrix.zero(real, 3, 3)
 
             if act_id > 0:
-                for axis in range(self.n_actuation_axes):
-                    act = self.actuation[axis, f, ti.max(0, act_id)] * self.act_strength
-                    # A[dim - 2, dim - 2] = act
-                    A[axis, axis] = act
+                act = self.actuation_x[f, ti.max(0, act_id)] * self.act_strength
+                A[0, 0] = act
+                if self.n_actuation_axes > 1:
+                    act = self.actuation_y[f, ti.max(0, act_id)] * self.act_strength
+                    A[1, 1] = act
+                if self.n_actuation_axes > 2:
+                    act = self.actuation_z[f, ti.max(0, act_id)] * self.act_strength
+                    A[2, 2] = act
+                # if self.n_actuation_axes > 1:
+                #     act = self.actuation[0, f, ti.max(0, act_id)] * self.act_strength
+                #     A[1, 1] = act
+                # for axis in range(self.n_actuation_axes):
+                #     act = self.actuation[axis, f, ti.max(0, act_id)] * self.act_strength
+                #     # A[dim - 2, dim - 2] = act
+                #     A[axis, axis] = act
 
             cauchy = new_F @ A @ new_F.transpose()
             if self.particle_type != 0:
@@ -282,10 +297,15 @@ class DiffControl:
             act += self.bias[axis, i]
 
             # Track the actuation of a single particle
-            self.actuation_value[axis, t, i] = act
+            # self.actuation_value[axis, t, i] = act
 
             # Activated actuation
-            self.actuation[axis, t, i] = ti.tanh(act)
+            if axis == 0:
+                self.actuation_x[t, i] = ti.tanh(act)
+            if axis == 1:
+                self.actuation_y[t, i] = ti.tanh(act)
+            if axis == 2:
+                self.actuation_z[t, i] = ti.tanh(act)
 
     @ti.kernel
     def compute_x_avg(self, steps: ti.i32):
@@ -342,7 +362,7 @@ class DiffControl:
                 self.bias[axis,i] -= learning_rate * self.bias.grad[axis,i]
                 self.weights[axis,i] -= learning_rate * self.weights.grad[axis,i]
                 self.offsets[axis,i] -= learning_rate * self.offsets.grad[axis,i]
-                self.omegas[axis,i] -= learning_rate * self.omegas.grad[axis,i]
+                # self.omegas[axis,i] -= learning_rate * self.omegas.grad[axis,i]
 
     def init(self, robot, load_weights_filename=None, savedata_folder=None):
         self.n_particles = robot.n_particles
@@ -360,7 +380,7 @@ class DiffControl:
             # for axis in range(self.n_actuation_axes):
             self.weights[axis, i] = np.random.randn() * 0.1
             self.offsets[axis, i] = np.random.randn()
-            self.omegas[axis, i] = np.random.randn() * 100
+            # self.omegas[axis, i] = np.random.randn() * 100
             # print(self.weights[i], self.offsets[i], self.omegas[i])
 
         for i in range(self.n_particles):
@@ -423,15 +443,6 @@ class DiffControl:
             savemat(f'{self.folder}.mat', {'x': np.squeeze(np.mean(self.x.to_numpy()[:self.visu_steps, :, :], axis=1))})
         print("loss=", loss_val)
         return loss_val
-
-    def visualize_actuation(self, n_actuators=3):
-
-        for i in range(n_actuators):
-            act_values = self.actuation_value.to_numpy()[:, :, i]
-            t = range(len(act_values))
-            plt.plot(t, act_values)
-
-        plt.show()
 
     def pickle_positions(self, file_name):
         position_data = self.x.to_numpy()

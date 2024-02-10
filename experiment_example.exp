@@ -1,0 +1,13 @@
+{
+    'name': 'example_exp',
+    'n_trials': 2,
+    'iters': 5,
+    'dt': 1e-3,
+    'gravity': 5,
+    'actuation_omega': 40, 
+    'actuation_strength': 5,
+    'sim_body_size': 0.1,
+    'learning_rate': 30,
+    'body_type': 'ANTHROBOT',
+    'actuation_axes': [2]
+}

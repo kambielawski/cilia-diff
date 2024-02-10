@@ -38,3 +38,20 @@ sbatch vacc_submit_exp.sh <experiment_file> <experiment_name>
 
 **This will spawn a single VACC job for every trial specified in the experiment.** In the example above, 10 VACC jobs will be spawned (5 trials for each experiment arm). Be wary of how many resources you're using.
 
+---
+
+## Launching on the VACC
+
+Load the module singularity for container launching
+```
+module load singularity
+```
+
+Pull the container you need, found from 
+```
+singularity pull docker://nvcr.io/nvidia/your_container:version_tag
+
+# e.g.: 
+singularity pull docker://nvcr.io/nvidia/cuda:12.3.1-runtime-ubuntu20.04
+```
+
