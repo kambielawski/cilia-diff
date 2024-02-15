@@ -11,8 +11,8 @@
 
 set -x 
 
-cd /gpfs1/home/k/t/ktbielaw/projects/ludobots
+cd /gpfs1/home/k/t/ktbielaw/projects/cilia-diff
 
-source /gpfs1/home/k/t/ktbielaw/anaconda3/bin/activate pyrosim
+source /gpfs1/home/k/t/ktbielaw/anaconda3/bin/activate ciliadiff
 
 python3 run_exp.py --exp $1 --vacc

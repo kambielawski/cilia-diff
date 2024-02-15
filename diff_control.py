@@ -419,6 +419,10 @@ class DiffControl:
             
             print('i=', it, 'loss=', loss, F' per iter {per_iter_time:.2f}s')
 
+            if np.isnan(loss):
+                print('Loss is NaN. Exiting...')
+                break
+
             self.learn(self.learning_rate)
 
             if visualize and it % 50 == 0:
@@ -457,4 +461,9 @@ class DiffControl:
         data_obj = (act_data, actuator_ids)
         with open(f'{self.folder}/{file_name}', 'wb') as pf:
             pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def pickle_loss(self, file_name):
+        with open(f'{self.folder}/{file_name}', 'wb') as pf:
+            pickle.dump(self.losses, pf, protocol=pickle.HIGHEST_PROTOCOL)
+
         

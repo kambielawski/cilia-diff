@@ -29,3 +29,4 @@ class Trial:
         dc.run(self.experiment_parameters['iters'])
         dc.pickle_act(f'trial{self.run_idx}_act.pkl')
         dc.pickle_positions(f'trial{self.run_idx}_pos.pkl')
+        dc.pickle_loss(f'trial{self.run_idx}_loss.pkl')

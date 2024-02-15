@@ -33,7 +33,7 @@ class Experiment:
     def Run_Vacc(self):
         # Submit a job for each trial...
         for _, trial in self.trials.items():
-            os.system('sbatch run_trial_vacc.sh ' + trial.pickle_file)
+            os.system('sbatch run_trial_vacc_bind.sh ' + trial.pickle_file)
 
     def Initialize_Directory(self, exp_file):
           """Initialize a new experiment directory and populate it with the necessary files and directories."""

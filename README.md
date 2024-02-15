@@ -55,3 +55,17 @@ singularity pull docker://nvcr.io/nvidia/your_container:version_tag
 singularity pull docker://nvcr.io/nvidia/cuda:12.3.1-runtime-ubuntu20.04
 ```
 
+Run a shell on an actual DeepGreen node to test sbatch files before submitting them
+```
+srun --partition=dggpu --nodes=1 --ntasks=1 --gpus=1 --job-name=ciliadiff --time=01:00:00 --pty /bin/bash
+```
+
+Make a sandbox from a singularity container (this basically creates a directory on the host machine which has all of the files from the container)
+```
+singularity build --sandbox taichi-vacc-x11_latest ~/taichi-vacc-x11_latest.sif
+```
+
+Get a shell inside of a Singularity container 
+```
+singularity shell --bind /gpfs1/home:/users --writable ./taichi-vacc-x11_latest
+```
