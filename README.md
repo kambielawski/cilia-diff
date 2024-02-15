@@ -38,3 +38,7 @@ sbatch vacc_submit_exp.sh <experiment_file> <experiment_name>
 
 **This will spawn a single VACC job for every trial specified in the experiment.** In the example above, 10 VACC jobs will be spawned (5 trials for each experiment arm). Be wary of how many resources you're using.
 
+Launch a shell on a DeepGreen GPU node
+```
+srun --partition=dggpu --nodes=1 --ntasks=1 --gpus=1 --job-name=ciliadiff --time=01:00:00 --pty /bin/bash
+```
