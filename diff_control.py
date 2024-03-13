@@ -9,6 +9,7 @@ from scipy.io import savemat
 from viz import visualize
 
 arch = ti.gpu # Use ti.metal if you are on Apple M1, ti.gpu if using CUDA
+# arch = ti.amdgpu
 real = ti.f32
 dim = 3
 scalar = lambda: ti.field(dtype=real)
@@ -40,7 +41,7 @@ def zero_matrix():
 
 @ti.data_oriented
 class DiffControl:
-    n_grid = 96
+    # n_grid = 96
     dx = 1 / 128
     inv_dx = 1 / dx
     p_vol = 1
@@ -83,6 +84,7 @@ class DiffControl:
         self.act_strength = experiment_parameters['actuation_strength']
         self.learning_rate = experiment_parameters['learning_rate']
         self.actuation_axes = experiment_parameters['actuation_axes']
+        self.n_grid = int(experiment_parameters['grid_res'])
         self.n_actuation_axes = len(self.actuation_axes)
 
         # Initialize memory for TaiChi simulation
