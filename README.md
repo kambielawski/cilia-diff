@@ -69,3 +69,10 @@ Get a shell inside of a Singularity container
 ```
 singularity shell --bind /gpfs1/home:/users --writable ./taichi-vacc-x11_latest
 ```
+---
+
+### Pulling experiment data 
+
+```
+rsync -avz --include='experiments/' --exclude='*_pos.pkl' --exclude='*_act.pkl' --include='experiments/Mar06_fluidish*_final/' --include='experiments/Mar06_fluidish*_final/**' --exclude='*' ktbielaw@vacc-user1.uvm.edu:~/projects/cilia-diff/ ./experiments
+```
