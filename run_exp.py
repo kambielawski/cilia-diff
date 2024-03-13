@@ -1,45 +1,37 @@
-import argparse
 import os
+import argparse
+from Experiment import Experiment
 
-from robot import Robot, RobotType
-from diff_control import DiffControl
+############# ARGUMENT PARSING #############
 
-# Parse command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('exp_file', type=str)
-parser.add_argument('exp_name', type=str)
+parser.add_argument('--dir', required=False, default='', help='Experiment ID')
+parser.add_argument('--exp', required=False, default='', help='Experiment file')
+parser.add_argument('--vacc', action='store_true', help='Run experiment on VACC')
 args = parser.parse_args()
 
-# Read the experiment file into exp_arms variable
-exp_file = open(args.exp_file)
-exp_string = exp_file.read()
-exp_arms = eval(exp_string)
-exp_file.close()
+############# ERROR CHECKING #############
 
-robot_type_map = {
-    'ANTHROBOT': RobotType.ANTH,
-    'ANTH_SPHERE': RobotType.ANTH_SPHERE,
-    'CILIA_BALL': RobotType.CILIA_BALL,
-    'SOLID': RobotType.SOLID,
-    'FLUIDISH': RobotType.FLUIDISH
-}
+# Either an experiment directory XOR an experiment file needs to be specified
+if (not args.dir and not args.exp) or (args.dir and args.exp):
+    raise OSError('Either an experiment directory OR an experiment file needs to be specified.')
 
-def main():
-    os.makedirs(f'./experiments/{args.exp_name}', exist_ok=True)
-    os.system(f'mv {args.exp_file} ./experiments/{args.exp_name}')
-    
-    for arm in exp_arms:
-            # Create experiments directory if it doesn't already exist
-            os.makedirs(f'./experiments/{args.exp_name}/{arm}', exist_ok=True)
-            
-            experiment_parameters = exp_arms[arm]
-            body_type = robot_type_map[experiment_parameters['body_type']]
-            
-            rbt = Robot(robot_type=body_type, experiment_parameters=experiment_parameters)
-            dc = DiffControl(savedata_folder=f'./experiments/{args.exp_name}/{arm}', experiment_parameters=experiment_parameters)
-            dc.init(rbt)
-            dc.run(experiment_parameters['iters'])
-            dc.pickle_positions(f'{arm}_positions.pkl')
+# An experiment directory, if specified, needs to exist
+if args.dir and not os.path.exists(args.dir):
+    raise ValueError('Can\'t find experiment "' + args.exp_id + '"')
 
-if __name__ == '__main__':
-    main()
+# Check for existence of the experiment specification
+if args.exp and not os.path.exists(args.exp):
+    raise OSError(f'Experiment file {args.exp} does not exist')
+
+############# RUN EXPERIMENT(S) #############
+
+if args.dir:   # Continue running existing experiment
+    exp = Experiment(args.dir)
+elif args.exp: # Start new experiment with experiment specification file
+    exp = Experiment(None, args.exp)
+
+if args.vacc:
+    exp.Run_Vacc()
+else:
+    exp.Run_Local()
