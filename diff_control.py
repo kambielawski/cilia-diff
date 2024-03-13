@@ -82,7 +82,8 @@ class DiffControl:
         self.actuation_omega = experiment_parameters['actuation_omega']
         self.act_strength = experiment_parameters['actuation_strength']
         self.learning_rate = experiment_parameters['learning_rate']
-
+        self.n_sin_waves = experiment_parameters['n_sin_waves']
+        print("Num sin waves: ", self.n_sin_waves)
         # Initialize memory for TaiChi simulation
         self.actuator_id = ti.field(ti.i32)
         self.particle_type = ti.field(ti.i32)
@@ -107,9 +108,9 @@ class DiffControl:
         """
         Allocates fields for TaiChi simulation
         """
-        # ti.root.dense(ti.ij, (self.n_actuators, self.n_sin_waves)).place(self.weights)
+
+        ti.root.dense(ti.ij, (self.n_actuators, self.n_sin_waves if self.n_sin_waves > 0 else 1)).place(self.weights)
         ti.root.dense(ti.i, self.n_actuators).place(self.bias)
-        ti.root.dense(ti.i, self.n_actuators).place(self.weights)
         ti.root.dense(ti.i, self.n_actuators).place(self.offsets)
         ti.root.dense(ti.i, self.n_actuators).place(self.omegas)
 
@@ -266,9 +267,12 @@ class DiffControl:
     @ti.kernel
     def compute_actuation(self, t: ti.i32):
         for i in range(self.n_actuators):
-            act = self.weights[i] * ti.sin(self.actuation_omega * t * self.dt + self.offsets[i])
-            # for j in ti.static(range(self.n_sin_waves)):
-            #     act += self.weights[i, j] * ti.sin(self.actuation_omega * t * self.dt + 2 * math.pi / self.n_sin_waves * j)
+            act = 0.0
+            if ti.static(self.n_sin_waves == 0):
+                act = self.weights[i, 0] * ti.sin(self.actuation_omega * t * self.dt + self.offsets[i])
+            else:
+                for j in ti.static(range(self.n_sin_waves)):
+                    act += self.weights[i, j] * ti.sin(self.actuation_omega * t * self.dt + 2 * np.pi / self.n_sin_waves * j)
             act += self.bias[i]
 
             # Track the actuation of a single particle
@@ -322,16 +326,17 @@ class DiffControl:
 
     @ti.kernel
     def learn(self, learning_rate: ti.template()):
-        # for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
-        #     self.weights[i, j] -= learning_rate * self.weights.grad[i, j]
-        #
-        # for i in range(self.n_actuators):
-        #     self.bias[i] -= learning_rate * self.bias.grad[i]
-        for i in range(self.n_actuators):
-            self.bias[i] -= learning_rate * self.bias.grad[i]
-            self.weights[i] -= learning_rate * self.weights.grad[i]
-            self.offsets[i] -= learning_rate * self.offsets.grad[i]
-            self.omegas[i] -= learning_rate * self.omegas.grad[i]
+        if self.n_sin_waves == 0:
+            for i in range(self.n_actuators):
+                self.bias[i] -= learning_rate * self.bias.grad[i]
+                self.weights[i,0] -= learning_rate * self.weights.grad[i,0]
+                self.offsets[i] -= learning_rate * self.offsets.grad[i]
+                self.omegas[i] -= learning_rate * self.omegas.grad[i]
+        else:
+            for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
+                self.weights[i, j] -= learning_rate * self.weights.grad[i, j]
+            for i in range(self.n_actuators):
+                self.bias[i] -= learning_rate * self.bias.grad[i]
 
     def init(self, robot, load_weights_filename=None, savedata_folder=None):
         self.n_particles = robot.n_particles
@@ -343,12 +348,14 @@ class DiffControl:
         print('actuator proportion: ', self.n_actuators / self.n_particles)
         self.allocate_fields()
 
-        # for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
-        #     self.weights[i, j] = np.random.randn() * 0.01
-        for i in range(self.n_actuators):
-            self.weights[i] = np.random.randn() * 0.1
-            self.offsets[i] = np.random.randn()
-            self.omegas[i] = np.random.randn() * 100
+        if self.n_sin_waves == 0:
+            for i in range(self.n_actuators):
+                self.weights[i,0] = np.random.randn() * 0.1
+                self.offsets[i] = np.random.randn()
+                self.omegas[i] = np.random.randn() * 100
+        else:
+            for i, j in ti.ndrange(self.n_actuators, self.n_sin_waves):
+                self.weights[i, j] = np.random.randn() * 0.01
             # print(self.weights[i], self.offsets[i], self.omegas[i])
 
         for i in range(self.n_particles):
