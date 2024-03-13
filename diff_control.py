@@ -40,7 +40,7 @@ def zero_matrix():
 
 @ti.data_oriented
 class DiffControl:
-    n_grid = 96
+    # n_grid = 96
     dx = 1 / 128
     inv_dx = 1 / dx
     p_vol = 1
@@ -83,6 +83,7 @@ class DiffControl:
         self.act_strength = experiment_parameters['actuation_strength']
         self.learning_rate = experiment_parameters['learning_rate']
         self.n_sin_waves = experiment_parameters['n_sin_waves']
+        self.n_grid = experiment_parameters['grid_res']
         print("Num sin waves: ", self.n_sin_waves)
         # Initialize memory for TaiChi simulation
         self.actuator_id = ti.field(ti.i32)
@@ -377,8 +378,8 @@ class DiffControl:
                 self.weights.from_numpy(np.load(f))
                 self.bias.from_numpy(np.load(f))
 
-    def save_weights(self, iters, loss_val):
-        with open(f'{self.folder}/iter{iters:04d}_{loss_val:04d}.npy', 'wb') as f:
+    def save_weights(self, iters):
+        with open(f'{self.folder}/iter{iters:04d}.npy', 'wb') as f:
             np.save(f, self.weights.to_numpy())
             np.save(f, self.bias.to_numpy())
 
@@ -434,3 +435,14 @@ class DiffControl:
         data_obj = (position_data, actuator_ids)
         with open(f'{self.folder}/{file_name}', 'wb') as pf:
             pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def pickle_act(self, file_name):
+        act_data = self.cauchy_act.to_numpy()
+        actuator_ids = self.actuator_id.to_numpy()
+        data_obj = (act_data, actuator_ids)
+        with open(f'{self.folder}/{file_name}', 'wb') as pf:
+            pickle.dump(data_obj, pf, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def pickle_loss(self, file_name):
+        with open(f'{self.folder}/{file_name}', 'wb') as pf:
+            pickle.dump(self.losses, pf, protocol=pickle.HIGHEST_PROTOCOL)
