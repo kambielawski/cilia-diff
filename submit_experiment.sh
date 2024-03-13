@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --partition=bluemoon
+#SBATCH --partition=dggpu
 #SBATCH --nodes=1
-# #SBATCH --ncpu=100
-#SBATCH --ntasks=100
+#SBATCH --ntasks=1
+#SBATCH --gpus=1
 #SBATCH --time=06:00:00
-#SBATCH --mem-per-cpu=2G
+#SBATCH --mem=4G
 #SBATCH --job-name=experiment_test_1
 #SBATCH --output=./outfiles/%x_%j.out
 
