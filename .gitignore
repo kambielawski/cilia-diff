@@ -9,3 +9,5 @@ animations
 experiments
 *.ipynb
 notebooks
+outfiles
+vacc_out_files
