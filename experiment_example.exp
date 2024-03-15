@@ -1,0 +1,14 @@
+{
+    'name': 'example_exp',
+    'n_trials': 2,
+    'iters': 5,
+    'grid_res': 96, 
+    'dt': 1e-3,
+    'gravity': 5,
+    'actuation_omega': 40, 
+    'actuation_strength': 10,
+    'sim_body_size': 0.1,
+    'learning_rate': 100,
+    'body_type': 'CILIA_BALL',
+    'n_sin_waves': 4
+}
