@@ -10,7 +10,7 @@ param_template = {
     'actuation_omega': 40, 
     'actuation_strength': 10,
     'sim_body_size': 0.1,
-    'learning_rate': 100,
+    'learning_rate': 10,
     'body_type': 'SOLID',
     'n_sin_waves': None
 }
